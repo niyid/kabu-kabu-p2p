@@ -66,7 +66,7 @@ android {
     signingConfigs {
         create("release") {
             val ksPath = getLocalProperty("RELEASE_STORE_FILE")
-            if (ksPath.isNotEmpty() && java.io.File(ksPath).exists()) {
+            if (ksPath.isNotEmpty() && File(ksPath).exists()) {
                 storeFile     = file(ksPath)
                 storePassword = getLocalProperty("RELEASE_STORE_PASSWORD")
                 keyAlias      = getLocalProperty("RELEASE_KEY_ALIAS")
