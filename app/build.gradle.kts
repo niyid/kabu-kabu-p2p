@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.File
 
 // ============================================================
 //  kabu-kabu-p2p  —  app/build.gradle.kts
