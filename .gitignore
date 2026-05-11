@@ -1,19 +1,25 @@
-# Android / Gradle
-.gradle/
-build/
-**/build/
-local.properties
-*.keystore
-*.jks
-
-# I2P artifacts (never commit — binary, large, sourced separately)
-app/libs/*.jar
-app/libs/*.aar
-
-# IDE
-.idea/
 *.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
 .DS_Store
-
-# Secrets
+/build
+/captures
+.externalNativeBuild
+.cxx
 local.properties
+*.aab
+*.apk
+local.properties
+*.jks
+*.keystore
+app/libs/router.jar
+app/libs/sam.jar
+app/libs/i2p-android-client.aar
+*.log
+logs/
