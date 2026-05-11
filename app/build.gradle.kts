@@ -227,7 +227,11 @@ dependencies {
 }
 
 configurations.all {
+    exclude(group = "com.android.support")
+
     resolutionStrategy {
+        force("androidx.core:core:1.17.0")
+        force("androidx.core:core-ktx:1.17.0")
         dependencySubstitution {
             substitute(module("com.google.protobuf:protobuf-java"))
                 .using(module("com.google.protobuf:protobuf-javalite:4.30.2"))
