@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KabuKabu" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">@color/kabu_amber</item>
+        <item name="colorPrimaryVariant">@color/kabu_gold_dark</item>
+        <item name="colorOnPrimary">@color/kabu_text_on_amber</item>
+        <item name="colorSecondary">@color/kabu_gold</item>
+        <item name="colorOnSecondary">@color/kabu_text_on_amber</item>
+        <item name="android:colorBackground">@color/kabu_bg_dark</item>
+        <item name="colorSurface">@color/kabu_surface</item>
+        <item name="colorOnSurface">@color/kabu_text_primary</item>
+        <item name="colorError">@color/kabu_error</item>
+        <item name="android:statusBarColor">@color/kabu_bg_dark</item>
+        <item name="android:navigationBarColor">@color/kabu_bg_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

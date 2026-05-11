@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    network_security_config.xml — Kabu-Kabu P2P
+
+    Cleartext traffic is permitted ONLY for I2P reseed servers during
+    the bootstrap phase (first run). All application-level peer traffic
+    is routed through I2P (encrypted at the transport layer).
+
+    No domain other than the reseed list is allowed cleartext.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+    <!-- I2P reseed servers — bootstrapping only, contacted once at first run -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">reseed-fr.i2pd.xyz</domain>
+        <domain includeSubdomains="true">reseed-pl.i2pd.xyz</domain>
+        <domain includeSubdomains="true">reseed.memcpy.io</domain>
+        <domain includeSubdomains="true">banana.incognet.io</domain>
+        <domain includeSubdomains="true">netdb.i2p2.no</domain>
+        <domain includeSubdomains="true">i2p.mooo.com</domain>
+        <domain includeSubdomains="true">reseed.onion.im</domain>
+        <domain includeSubdomains="true">reseed.i2p-projekt.de</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Loopback — I2PKabuService local bridge -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

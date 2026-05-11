@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_trip_history">Trip History</string>
+    <string name="empty_history">No trips yet.\nYour history is stored only on this device.</string>
+    <string name="unknown_zone">Unknown zone</string>
+    <string name="peer_short_id">Peer: …%1$s</string>
+    <string name="peer_unknown">Peer: unknown</string>
+
+    <!-- Clear history dialog -->
+    <string name="confirm_clear_title">Clear Trip History?</string>
+    <string name="confirm_clear_body">This will permanently delete all trip records from your device. This cannot be undone.</string>
+    <string name="clear">Clear</string>
+    <string name="cancel">Cancel</string>
+    <string name="history_cleared">Trip history cleared</string>
+
+    <!-- Menu -->
+    <string name="menu_clear_history">Clear history</string>
+</resources>

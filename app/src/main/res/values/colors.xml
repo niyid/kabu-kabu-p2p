@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Android compat -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- ── Kabu-Kabu brand palette ─────────────────────────────────────────
+         Inspired by the icon: bold amber/gold on deep charcoal-black.
+         Conveys reliability, Nigerian energy, and premium trust.          -->
+
+    <!-- Dark charcoal — primary background (matches icon surround) -->
+    <color name="kabu_bg_dark">#FF1A1A1A</color>
+    <!-- Slightly elevated surface for cards, dialogs -->
+    <color name="kabu_surface">#FF242424</color>
+    <!-- Card elevated -->
+    <color name="kabu_surface_elevated">#FF2E2E2E</color>
+
+    <!-- Amber gold — primary brand colour (matches icon taxi/box colour) -->
+    <color name="kabu_amber">#FFFFC107</color>
+    <!-- Warm gold accent — buttons, highlights -->
+    <color name="kabu_gold">#FFFFB300</color>
+    <!-- Deep gold — pressed / active states -->
+    <color name="kabu_gold_dark">#FFFF8F00</color>
+    <!-- Amber tint for backgrounds behind gold text -->
+    <color name="kabu_amber_tint">#33FFC107</color>
+
+    <!-- Text -->
+    <color name="kabu_text_primary">#FFFFFFFF</color>
+    <color name="kabu_text_secondary">#FFBDBDBD</color>
+    <color name="kabu_text_hint">#FF757575</color>
+    <color name="kabu_text_on_amber">#FF1A1A1A</color>
+
+    <!-- Status colours -->
+    <color name="kabu_success">#FF4CAF50</color>
+    <color name="kabu_error">#FFEF5350</color>
+    <color name="kabu_warning">#FFFFA726</color>
+    <color name="kabu_info">#FF29B6F6</color>
+
+    <!-- UI chrome -->
+    <color name="kabu_divider">#FF333333</color>
+    <color name="kabu_input_bg">#FF1E1E1E</color>
+    <color name="kabu_ripple">#33FFFFFFFF</color>
+
+    <!-- Privacy indicator (green dot — "no server connection") -->
+    <color name="privacy_indicator">#FF00C853</color>
+
+    <!-- Service type badge colours -->
+    <color name="badge_taxi">#FFFFC107</color>
+    <color name="badge_courier">#FF29B6F6</color>
+</resources>

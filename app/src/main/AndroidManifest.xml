@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroidManifest — kabu-kabu-p2p
+
+    Privacy design:
+      - No WRITE_EXTERNAL_STORAGE: trip data stays in app-private Room DB
+      - Location is collected only to compute a GeoHash-5 cell (~5 km)
+        and is NEVER transmitted in raw form over any network
+      - All peer communication goes through the embedded I2P router;
+        no cleartext traffic is permitted outside of I2P reseed bootstrapping
+        (handled in network_security_config.xml)
+      - Battery optimisation exemption requested so the I2P router stays
+        alive and drivers/couriers remain reachable in the background
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Network (I2P + reseed bootstrapping) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <!-- Required for I2P UDP multicast peer discovery on LAN -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+
+    <!-- Location — GeoHash cell computation only; raw GPS never leaves device -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- Background location: drivers need to stay discoverable while backgrounded -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
+    <!-- Notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- Audio -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+    <!-- Keep I2P router alive -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+    <!-- Camera (optional proof-of-delivery photo — stored locally) -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <application
+        android:name=".KabuKabuApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.KabuKabu"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="36">
+
+        <!--
+            MainActivity — rider / sender UI
+            Handles ride/courier requests, live peer-map (GeoHash cells only),
+            trip history (local Room DB only)
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.KabuKabu">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!--
+            I2PKabuService — replaces any central WebSocket relay.
+            Runs the embedded I2P router and the local Matchmaking Service
+            (127.0.0.1:8881) as a foreground service.
+            Drivers keep this running in the background so they remain
+            discoverable by riders/senders in their GeoHash cell.
+        -->
+        <service
+            android:name=".service.I2PKabuService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|remoteMessaging|location"/>
+
+            <!-- DriverActivity — driver/courier runner UI -->
+        <activity
+            android:name=".DriverActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KabuKabu"/>
+
+        <!-- TripHistoryActivity — on-device trip history (no server fetch) -->
+        <activity
+            android:name=".TripHistoryActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.KabuKabu"/>
+    </application>
+
+</manifest>

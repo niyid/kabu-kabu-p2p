@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    strings_driver.xml — additional strings for DriverActivity.
+    Merge these into strings.xml (or keep as a separate resource file;
+    Android merges all values/*.xml automatically at build time).
+-->
+<resources>
+    <!-- Driver status -->
+    <string name="driver_status_online">Online (I2P) ✓</string>
+    <string name="driver_status_offline">Offline</string>
+
+    <!-- Driver buttons -->
+    <string name="btn_go_online">Go Online</string>
+    <string name="btn_go_offline">Go Offline</string>
+
+    <!-- Trip state buttons -->
+    <string name="btn_status_idle">No active trip</string>
+    <string name="btn_status_offer_sent">Offer sent — waiting for rider…</string>
+    <string name="btn_status_en_route">Mark: I have arrived</string>
+    <string name="btn_status_arrived">Mark: Trip started</string>
+    <string name="btn_status_complete">Mark: Trip completed ✓</string>
+
+    <!-- Offer / request feedback -->
+    <string name="offer_sent_waiting">Offer sent — waiting for rider to accept…</string>
+    <string name="error_already_active">You already have an active trip</string>
+
+    <!-- Open requests list header -->
+    <string name="title_open_requests">Open Requests Near You</string>
+</resources>

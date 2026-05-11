@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kabu-Kabu</string>
+
+    <!-- Onboarding / registration -->
+    <string name="privacy_title">Your Privacy Matters</string>
+    <string name="privacy_body">
+        Kabu-Kabu is a privacy-first P2P taxi and courier service.\n\n
+        • Your exact GPS location is NEVER stored or transmitted.\n
+          We only use a ~5 km fuzzy zone (GeoHash cell) for matching.\n\n
+        • Your phone number is hashed (SHA-256) on this device.\n
+          The plaintext number is never sent over any network.\n\n
+        • All peer traffic is routed through the I2P anonymity network.\n
+          No driver or courier can see your IP address.\n\n
+        • All trip records are stored on your device only.\n
+          No cloud database. No central server. No data broker.\n\n
+        By accepting you agree to these privacy principles.
+    </string>
+    <string name="accept">Accept</string>
+    <string name="decline">Decline</string>
+    <string name="ok">OK</string>
+    <string name="register_title">Register</string>
+    <string name="register_body">Enter your phone number. It will be hashed (SHA-256) immediately — the plaintext is never stored or sent.</string>
+    <string name="phone_hint">+234 800 000 0000</string>
+
+    <!-- Status labels -->
+    <string name="status_registered">Registered ✓</string>
+    <string name="status_connected">Connected (I2P) ✓</string>
+    <string name="status_disconnected">Reconnecting…</string>
+    <string name="zone_label">Zone: %1$s</string>
+
+    <!-- Ride request flow -->
+    <string name="request_sent">Request broadcast ✓</string>
+    <string name="request_failed">Could not broadcast — check I2P connection</string>
+    <string name="error_not_ready">Still locating your zone, please wait…</string>
+    <string name="new_offer_received">New driver offer received!</string>
+    <string name="offer_accepted">Offer accepted — driver notified</string>
+
+    <!-- Driver offer card -->
+    <string name="eta_minutes">ETA: %1$d min</string>
+    <string name="rating_stars">★ %1$.1f</string>
+    <string name="fare_ngn">₦%1$d</string>
+    <string name="driver_anon_id">Driver ID: …%1$s</string>
+
+    <!-- Ride request card (driver view) -->
+    <string name="pickup_zone">Pickup zone: %1$s</string>
+    <string name="no_note">No additional notes</string>
+
+    <!-- Trip events -->
+    <string name="event_en_route">Driver is on the way</string>
+    <string name="event_arrived">Driver has arrived</string>
+    <string name="event_trip_started">Trip in progress</string>
+    <string name="event_trip_completed">Trip completed ✓</string>
+    <string name="event_trip_cancelled">Trip cancelled</string>
+
+    <!-- Foreground service notification -->
+    <string name="service_channel_name">Kabu-Kabu P2P</string>
+    <string name="service_channel_content">Running privately on I2P — your location is not shared</string>
+
+    <!-- Misc UI -->
+    <string name="btn_request_ride">Request Ride / Courier</string>
+    <string name="btn_switch_role">Switch to Driver Mode</string>
+    <string name="btn_accept">Accept</string>
+    <string name="btn_make_offer">Make Offer</string>
+    <string name="title_offers">Incoming Offers</string>
+    <string name="hint_note">Describe package or destination area…</string>
+</resources>
