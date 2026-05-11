@@ -58,7 +58,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KabuKabu"
         android:networkSecurityConfig="@xml/network_security_config"
-        tools:targetApi="36">
+        tools:targetApi="36"
+        tools:replace="android:allowBackup">
 
         <!--
             MainActivity — rider / sender UI
