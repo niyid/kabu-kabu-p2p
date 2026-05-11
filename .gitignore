@@ -1,25 +1,24 @@
+# Build outputs
+/app/build/
+/build/
+
+# Gradle
+.gradle/
+
+# Local machine secrets
+local.properties
+
+# IDE
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+
+# macOS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-*.aab
-*.apk
-local.properties
+
+# Logs
+logs/
+*.log
+
+# Keystores
 *.jks
 *.keystore
-app/libs/router.jar
-app/libs/sam.jar
-app/libs/i2p-android-client.aar
-*.log
-logs/
