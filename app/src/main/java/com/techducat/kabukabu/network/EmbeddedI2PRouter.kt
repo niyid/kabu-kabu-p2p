@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p.network
+package com.techducat.kabukabu.network
 
 import android.content.Context
 import android.util.Log

@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p.db
+package com.techducat.kabukabu.db
 
 import android.content.Context
 import androidx.room.Database

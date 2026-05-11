@@ -33,11 +33,11 @@ fun getLocalProperty(key: String, defaultValue: String = ""): String =
 
 // ── Android ──────────────────────────────────────────────────────────────────
 android {
-    namespace  = "com.techducat.kabukabup2p"
+    namespace  = "com.techducat.kabukabu"
     compileSdk = 36
 
     defaultConfig {
-        applicationId   = "com.techducat.kabukabup2p"
+        applicationId   = "com.techducat.kabukabu"
         minSdk          = 26          // I2P embedded router requires API 26+
         targetSdk       = 36
         versionCode     = 1
@@ -65,12 +65,16 @@ android {
     signingConfigs {
         create("release") {
             val ksPath = getLocalProperty("RELEASE_STORE_FILE")
-            if (ksPath.isNotEmpty()) {
+            if (ksPath.isNotEmpty() && java.io.File(ksPath).exists()) {
                 storeFile     = file(ksPath)
                 storePassword = getLocalProperty("RELEASE_STORE_PASSWORD")
                 keyAlias      = getLocalProperty("RELEASE_KEY_ALIAS")
                 keyPassword   = getLocalProperty("RELEASE_KEY_PASSWORD")
             }
+            // If no keystore is configured the bundle will be unsigned.
+            // Sign manually:
+            //   jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256
+            //             -keystore your.jks app-release.aab your_alias
         }
     }
 

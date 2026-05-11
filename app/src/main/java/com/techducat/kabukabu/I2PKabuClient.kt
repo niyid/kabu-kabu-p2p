@@ -1,8 +1,8 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import android.content.Context
 import android.util.Log
-import com.techducat.kabukabup2p.model.*
+import com.techducat.kabukabu.model.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import org.json.JSONObject

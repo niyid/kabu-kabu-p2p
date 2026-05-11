@@ -1,6 +1,6 @@
-package com.techducat.kabukabup2p.network
+package com.techducat.kabukabu.network
 
-import com.techducat.kabukabup2p.model.ServiceType
+import com.techducat.kabukabu.model.ServiceType
 import kotlin.math.*
 
 /**

@@ -1,6 +1,6 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
-import com.techducat.kabukabup2p.model.*
+import com.techducat.kabukabu.model.*
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.UUID

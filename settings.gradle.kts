@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "kabu-kabu-p2p"
+rootProject.name = "kabu-kabu"
 include(":app")

@@ -1,11 +1,11 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.bugfender.sdk.Bugfender
-import com.techducat.kabukabup2p.network.EmbeddedI2PRouter
-import com.techducat.kabukabup2p.service.I2PKabuService
+import com.techducat.kabukabu.network.EmbeddedI2PRouter
+import com.techducat.kabukabu.service.I2PKabuService
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +34,7 @@ class KabuKabuApp : Application() {
 
     companion object {
         private const val TAG         = "KabuKabuApp"
-        const val PREFS_NAME          = "com.techducat.kabukabup2p.Prefs"
+        const val PREFS_NAME          = "com.techducat.kabukabu.Prefs"
         const val KEY_DEVICE_ID       = "key_device_id"
         const val KEY_ROLE            = "key_role"          // "rider" | "driver" | "courier"
         const val KEY_POLICY_ACCEPTED = "key_policy_accepted"

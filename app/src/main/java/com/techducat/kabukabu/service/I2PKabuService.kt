@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p.service
+package com.techducat.kabukabu.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,13 +12,13 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
-import com.techducat.kabukabup2p.BuildConfig
-import com.techducat.kabukabup2p.KabuKabuApp
-import com.techducat.kabukabup2p.R
-import com.techducat.kabukabup2p.db.KabuDatabase
-import com.techducat.kabukabup2p.db.TripDao
-import com.techducat.kabukabup2p.db.TripEntity
-import com.techducat.kabukabup2p.network.EmbeddedI2PRouter
+import com.techducat.kabukabu.BuildConfig
+import com.techducat.kabukabu.KabuKabuApp
+import com.techducat.kabukabu.R
+import com.techducat.kabukabu.db.KabuDatabase
+import com.techducat.kabukabu.db.TripDao
+import com.techducat.kabukabu.db.TripEntity
+import com.techducat.kabukabu.network.EmbeddedI2PRouter
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -177,7 +177,7 @@ class I2PKabuService : LifecycleService() {
 
     private fun wireI2PReceiveListener() {
         try {
-            val cls      = Class.forName("com.techducat.kabukabup2p.network.I2PTransport")
+            val cls      = Class.forName("com.techducat.kabukabu.network.I2PTransport")
             val getInstance = cls.getMethod("getInstance", Context::class.java, String::class.java)
             val transport   = getInstance.invoke(null, applicationContext, deviceId)
             val setListener = cls.getMethod("setReceiveListener", Function1::class.java)
@@ -343,7 +343,7 @@ class I2PKabuService : LifecycleService() {
 
     private fun sendOverI2P(json: JSONObject) {
         try {
-            val cls      = Class.forName("com.techducat.kabukabup2p.network.I2PTransport")
+            val cls      = Class.forName("com.techducat.kabukabu.network.I2PTransport")
             val getInstance = cls.getMethod("getInstance", Context::class.java, String::class.java)
             val transport   = getInstance.invoke(null, applicationContext, deviceId)
             val broadcast   = cls.getMethod("broadcast", ByteArray::class.java)

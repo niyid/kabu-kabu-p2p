@@ -1,10 +1,10 @@
 # Kabu-Kabu P2P — ProGuard rules
 
 # Keep Room entities and DAOs
--keep class com.techducat.kabukabup2p.db.** { *; }
+-keep class com.techducat.kabukabu.db.** { *; }
 
 # Keep domain model (passed through JSON reflection)
--keep class com.techducat.kabukabup2p.model.** { *; }
+-keep class com.techducat.kabukabu.model.** { *; }
 
 # Keep Hilt-generated classes
 -keep class dagger.hilt.** { *; }

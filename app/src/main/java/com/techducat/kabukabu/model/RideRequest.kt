@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p.model
+package com.techducat.kabukabu.model
 
 /**
  * RideRequest — the unit of information broadcast over the I2P network.

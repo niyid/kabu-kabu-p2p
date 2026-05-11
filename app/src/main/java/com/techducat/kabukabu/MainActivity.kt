@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import android.Manifest
 import android.app.AlertDialog
@@ -18,10 +18,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ch.hsr.geohash.GeoHash
 import com.google.android.gms.location.*
-import com.techducat.kabukabup2p.model.*
-import com.techducat.kabukabup2p.service.I2PKabuService
-import com.techducat.kabukabup2p.ui.OfferAdapter
-import com.techducat.kabukabup2p.ui.RequestAdapter
+import com.techducat.kabukabu.model.*
+import com.techducat.kabukabu.service.I2PKabuService
+import com.techducat.kabukabu.ui.OfferAdapter
+import com.techducat.kabukabu.ui.RequestAdapter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

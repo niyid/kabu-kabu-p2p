@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import org.junit.Assert.*
 import org.junit.Test

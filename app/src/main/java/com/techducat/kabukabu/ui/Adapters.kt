@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p.ui
+package com.techducat.kabukabu.ui
 
 import android.view.LayoutInflater
 import android.view.View
@@ -6,9 +6,9 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.techducat.kabukabup2p.R
-import com.techducat.kabukabup2p.model.DriverOffer
-import com.techducat.kabukabup2p.model.RideRequest
+import com.techducat.kabukabu.R
+import com.techducat.kabukabu.model.DriverOffer
+import com.techducat.kabukabu.model.RideRequest
 
 /**
  * OfferAdapter — displays incoming driver offers to a rider.

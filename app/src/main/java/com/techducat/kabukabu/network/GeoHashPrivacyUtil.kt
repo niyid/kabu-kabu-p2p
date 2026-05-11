@@ -1,8 +1,8 @@
-package com.techducat.kabukabup2p.network
+package com.techducat.kabukabu.network
 
 import ch.hsr.geohash.GeoHash
 import ch.hsr.geohash.WGS84Point
-import com.techducat.kabukabup2p.BuildConfig
+import com.techducat.kabukabu.BuildConfig
 
 /**
  * GeoHashPrivacyUtil — location anonymisation helpers.

@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import android.os.Bundle
 import android.view.*
@@ -9,10 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.techducat.kabukabup2p.db.TripEntity
-import com.techducat.kabukabup2p.db.TripRepository
-import com.techducat.kabukabup2p.network.FareEstimator
-import com.techducat.kabukabup2p.network.GeoHashPrivacyUtil
+import com.techducat.kabukabu.db.TripEntity
+import com.techducat.kabukabu.db.TripRepository
+import com.techducat.kabukabu.network.FareEstimator
+import com.techducat.kabukabu.network.GeoHashPrivacyUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat

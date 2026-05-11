@@ -1,4 +1,4 @@
-package com.techducat.kabukabup2p
+package com.techducat.kabukabu
 
 import android.Manifest
 import android.content.Context
@@ -16,12 +16,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ch.hsr.geohash.GeoHash
 import com.google.android.gms.location.*
-import com.techducat.kabukabup2p.db.KabuDatabase
-import com.techducat.kabukabup2p.db.PeerReviewEntity
-import com.techducat.kabukabup2p.db.TripEntity
-import com.techducat.kabukabup2p.model.*
-import com.techducat.kabukabup2p.service.I2PKabuService
-import com.techducat.kabukabup2p.ui.RequestAdapter
+import com.techducat.kabukabu.db.KabuDatabase
+import com.techducat.kabukabu.db.PeerReviewEntity
+import com.techducat.kabukabu.db.TripEntity
+import com.techducat.kabukabu.model.*
+import com.techducat.kabukabu.service.I2PKabuService
+import com.techducat.kabukabu.ui.RequestAdapter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -396,7 +396,7 @@ class DriverActivity :
     /** Returns the I2P destination string, or a stub if router not yet ready. */
     private fun getI2PDestination(): String {
         return try {
-            val cls         = Class.forName("com.techducat.kabukabup2p.network.I2PTransport")
+            val cls         = Class.forName("com.techducat.kabukabu.network.I2PTransport")
             val getInstance = cls.getMethod("getInstance", Context::class.java, String::class.java)
             val transport   = getInstance.invoke(null, applicationContext, deviceId)
             val getDestMethod = cls.getMethod("getLocalDestination")

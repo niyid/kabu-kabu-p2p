@@ -1,9 +1,9 @@
-package com.techducat.kabukabup2p.di
+package com.techducat.kabukabu.di
 
 import android.content.Context
 import androidx.room.Room
-import com.techducat.kabukabup2p.db.KabuDatabase
-import com.techducat.kabukabup2p.db.TripDao
+import com.techducat.kabukabu.db.KabuDatabase
+import com.techducat.kabukabu.db.TripDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
