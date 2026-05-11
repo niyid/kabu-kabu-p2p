@@ -1,42 +1,34 @@
-# app/libs — I2P Embedded Router Artifacts
+# app/libs — Native dependency binaries
 
-Kabu-Kabu P2P uses the same embedded I2P router strategy as buzzr-p2p.
-The three artifacts below must be placed here before building.
+This directory holds the local AAR/JAR files that cannot be published to Maven Central for licensing or size reasons.
 
 ## Required files
 
-| File | Source |
-|------|--------|
-| `router.jar` | Built from [i2p.i2p](https://github.com/i2p/i2p.i2p) — run `ant pkg` |
-| `sam.jar` | Same build, in `pkg/` output folder |
-| `i2p-android-client.aar` | Built from [i2p.android.base](https://github.com/i2p/i2p.android.base) — `./gradlew assembleRelease` |
+| File | Source | Purpose |
+|------|--------|---------|
+| `i2p-android-client.aar` | ajo-android-p2p/app/libs/ | I2P Android client library |
+| `router.jar` | ajo-android-p2p/app/libs/ | I2P router core |
+| `sam.jar` | ajo-android-p2p/app/libs/ | I2P SAM v3.1 bridge |
+| `monerujo-xmrwallet.aar` | ajo-android-p2p/app/libs/ | Monero wallet JNI wrapper (monerujo) |
 
-## Build steps
+## How to obtain
 
-```bash
-# 1. Build i2p.i2p
-git clone https://github.com/i2p/i2p.i2p
-cd i2p.i2p && ant pkg
-cp pkg/router.jar /path/to/kabu-kabu-p2p/app/libs/
-cp pkg/sam.jar    /path/to/kabu-kabu-p2p/app/libs/
+1. Clone or unzip `ajo-android-p2p`
+2. Copy everything from `ajo-android-p2p/app/libs/` into this `app/libs/` directory:
+   ```
+   cp ajo-android-p2p/app/libs/*.aar scrowit-android-p2p/app/libs/
+   cp ajo-android-p2p/app/libs/*.jar scrowit-android-p2p/app/libs/
+   ```
+3. Clean and rebuild: `./gradlew clean assembleDebug`
 
-# 2. Build i2p.android.base
-git clone https://github.com/i2p/i2p.android.base
-cd i2p.android.base && ./gradlew assembleRelease
-cp client/build/outputs/aar/client-release.aar \
-   /path/to/kabu-kabu-p2p/app/libs/i2p-android-client.aar
-```
+## What happens without them
 
-## Without the JARs
+The build still succeeds — `build.gradle.kts` detects absence and emits a warning. The app boots with `MockTransport` (no real I2P) and wallet operations are disabled. All trade state-machine logic, QR flows and Firestore sync still work for development.
 
-The build still succeeds — the app runs in "stub" mode:
-- I2P router is disabled
-- Peer discovery uses the loopback server only (single-device testing)
-- All other features (Room DB, GeoHash, UI) work normally
+## Native `.so` files
 
-This lets you run UI tests without the full I2P build environment.
+`monerujo-xmrwallet.aar` bundles `libmonerujo.so` for all four ABIs (`armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`). The `packagingOptions` in `build.gradle.kts` uses `pickFirsts` to avoid duplicate `.so` conflicts if you add a second native AAR.
 
-## SAM port
+## Building monerujo from source (optional)
 
-Kabu-Kabu uses SAM port **7657** (Buzzr uses 7656) to allow both apps
-to run on the same device during development.
+See [monerujo build instructions](https://github.com/m2049r/xmrwallet#building) if you need a specific Monero daemon version or custom network (mainnet/stagenet/testnet).

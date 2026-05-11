@@ -1,0 +1,19 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.keystore
+*.jks
+
+# I2P artifacts (never commit — binary, large, sourced separately)
+app/libs/*.jar
+app/libs/*.aar
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Secrets
+local.properties
