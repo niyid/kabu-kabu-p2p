@@ -21,8 +21,8 @@
     <color name="kabu_gold">#FFFFB300</color>
     <!-- Deep gold — pressed / active states -->
     <color name="kabu_gold_dark">#FFFF8F00</color>
-    <!-- Amber tint for backgrounds behind gold text -->
-    <color name="kabu_amber_tint">#33FFC107</color>
+    <!-- Amber tint for backgrounds behind gold text (20% alpha = #33 → use #1AFFC107) -->
+    <color name="kabu_amber_tint">#1AFFC107</color>
 
     <!-- Text -->
     <color name="kabu_text_primary">#FFFFFFFF</color>
@@ -39,7 +39,8 @@
     <!-- UI chrome -->
     <color name="kabu_divider">#FF333333</color>
     <color name="kabu_input_bg">#FF1E1E1E</color>
-    <color name="kabu_ripple">#33FFFFFFFF</color>
+    <!-- White ripple at 20% alpha -->
+    <color name="kabu_ripple">#1AFFFFFF</color>
 
     <!-- Privacy indicator (green dot — "no server connection") -->
     <color name="privacy_indicator">#FF00C853</color>

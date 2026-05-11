@@ -1,0 +1,347 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<!--
+3    AndroidManifest — kabu-kabu-p2p
+4
+5    Privacy design:
+6      - No WRITE_EXTERNAL_STORAGE: trip data stays in app-private Room DB
+7      - Location is collected only to compute a GeoHash-5 cell (~5 km)
+8        and is NEVER transmitted in raw form over any network
+9      - All peer communication goes through the embedded I2P router;
+10        no cleartext traffic is permitted outside of I2P reseed bootstrapping
+11        (handled in network_security_config.xml)
+12      - Battery optimisation exemption requested so the I2P router stays
+13        alive and drivers/couriers remain reachable in the background
+14-->
+15<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+16    package="com.techducat.kabukabup2p"
+17    android:versionCode="1"
+18    android:versionName="0.1.0-p2p" >
+19
+20    <uses-sdk
+21        android:minSdkVersion="26"
+22        android:targetSdkVersion="36" />
+23
+24    <!-- Network (I2P + reseed bootstrapping) -->
+25    <uses-permission android:name="android.permission.INTERNET" />
+25-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:19:5-66
+25-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:19:22-64
+26    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+26-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:20:5-78
+26-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:20:22-76
+27    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+27-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:21:5-75
+27-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:21:22-73
+28    <!-- Required for I2P UDP multicast peer discovery on LAN -->
+29    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+29-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:23:5-85
+29-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:23:22-83
+30
+31    <!-- Location — GeoHash cell computation only; raw GPS never leaves device -->
+32    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+32-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:26:5-80
+32-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:26:22-78
+33    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+33-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:27:5-78
+33-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:27:22-76
+34    <!-- Background location: drivers need to stay discoverable while backgrounded -->
+35    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+35-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:29:5-84
+35-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:29:22-82
+36
+37    <!-- Notifications -->
+38    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+38-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:32:5-76
+38-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:32:22-74
+39    <uses-permission android:name="android.permission.VIBRATE" />
+39-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:33:5-65
+39-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:33:22-63
+40
+41    <!-- Audio -->
+42    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+42-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:36:5-79
+42-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:36:22-77
+43
+44    <!-- Keep I2P router alive -->
+45    <uses-permission android:name="android.permission.WAKE_LOCK" />
+45-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:39:5-67
+45-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:39:22-65
+46    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+46-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:40:5-76
+46-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:40:22-74
+47    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+47-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:41:5-86
+47-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:41:22-84
+48    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+48-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:42:5-93
+48-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:42:22-91
+49    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+49-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:43:5-85
+49-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:43:22-83
+50    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+50-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:44:5-94
+50-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:44:22-92
+51
+52    <!-- Camera (optional proof-of-delivery photo — stored locally) -->
+53    <uses-permission android:name="android.permission.CAMERA" />
+53-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:47:5-64
+53-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:47:22-62
+54
+55    <uses-feature
+55-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:48:5-84
+56        android:name="android.hardware.camera"
+56-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:48:19-57
+57        android:required="false" />
+57-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:48:58-82
+58
+59    <permission
+59-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:22:5-24:47
+60        android:name="com.techducat.kabukabup2p.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+60-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:23:9-81
+61        android:protectionLevel="signature" />
+61-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:24:9-44
+62
+63    <uses-permission android:name="com.techducat.kabukabup2p.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+63-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:26:5-97
+63-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:26:22-94
+64
+65    <supports-screens
+65-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:9:5-12:40
+66        android:anyDensity="true"
+66-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:10:9-34
+67        android:largeScreens="true"
+67-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:11:9-36
+68        android:normalScreens="true" />
+68-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:12:9-37
+69
+70    <uses-feature
+70-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:14:5-16:36
+71        android:name="android.hardware.location.network"
+71-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:15:9-57
+72        android:required="false" />
+72-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:16:9-33
+73    <uses-feature
+73-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:17:5-19:36
+74        android:name="android.hardware.location.gps"
+74-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:18:9-53
+75        android:required="false" />
+75-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:19:9-33
+76    <uses-feature
+76-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:20:5-22:36
+77        android:name="android.hardware.telephony"
+77-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:21:9-50
+78        android:required="false" />
+78-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:22:9-33
+79    <uses-feature
+79-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:23:5-25:36
+80        android:name="android.hardware.wifi"
+80-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:24:9-45
+81        android:required="false" />
+81-->[org.osmdroid:osmdroid-android:6.1.20] /home/niyid/.gradle/caches/8.11.1/transforms/d461c2884c1f4591cdaaf7e9d96000b0/transformed/osmdroid-android-6.1.20/AndroidManifest.xml:25:9-33
+82
+83    <application
+83-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:50:5-104:19
+84        android:name="com.techducat.kabukabup2p.KabuKabuApp"
+84-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:51:9-36
+85        android:allowBackup="false"
+85-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:52:9-36
+86        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+86-->[androidx.core:core:1.17.0] /home/niyid/.gradle/caches/8.11.1/transforms/7fa6e01a18637c87dff492ecbc34b644/transformed/core-1.17.0/AndroidManifest.xml:28:18-86
+87        android:dataExtractionRules="@xml/data_extraction_rules"
+87-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:53:9-65
+88        android:extractNativeLibs="false"
+89        android:fullBackupContent="@xml/backup_rules"
+89-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:54:9-54
+90        android:icon="@mipmap/ic_launcher"
+90-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:55:9-43
+91        android:label="@string/app_name"
+91-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:57:9-41
+92        android:networkSecurityConfig="@xml/network_security_config"
+92-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:60:9-69
+93        android:roundIcon="@mipmap/ic_launcher_round"
+93-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:56:9-54
+94        android:supportsRtl="true"
+94-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:58:9-35
+95        android:theme="@style/Theme.KabuKabu" >
+95-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:59:9-46
+96
+97        <!--
+98            MainActivity — rider / sender UI
+99            Handles ride/courier requests, live peer-map (GeoHash cells only),
+100            trip history (local Room DB only)
+101        -->
+102        <activity
+102-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:69:9-77:20
+103            android:name="com.techducat.kabukabup2p.MainActivity"
+103-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:70:13-41
+104            android:exported="true"
+104-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:71:13-36
+105            android:theme="@style/Theme.KabuKabu" >
+105-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:72:13-50
+106            <intent-filter>
+106-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:73:13-76:29
+107                <action android:name="android.intent.action.MAIN" />
+107-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:74:17-68
+107-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:74:25-66
+108
+109                <category android:name="android.intent.category.LAUNCHER" />
+109-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:75:17-76
+109-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:75:27-74
+110            </intent-filter>
+111        </activity>
+112
+113        <!--
+114            I2PKabuService — replaces any central WebSocket relay.
+115            Runs the embedded I2P router and the local Matchmaking Service
+116            (127.0.0.1:8881) as a foreground service.
+117            Drivers keep this running in the background so they remain
+118            discoverable by riders/senders in their GeoHash cell.
+119        -->
+120        <service
+120-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:86:9-90:80
+121            android:name="com.techducat.kabukabup2p.service.I2PKabuService"
+121-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:87:13-51
+122            android:enabled="true"
+122-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:88:13-35
+123            android:exported="false"
+123-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:89:13-37
+124            android:foregroundServiceType="dataSync|remoteMessaging|location" />
+124-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:90:13-78
+125
+126        <!-- DriverActivity — driver/courier runner UI -->
+127        <activity
+127-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:93:9-96:52
+128            android:name="com.techducat.kabukabup2p.DriverActivity"
+128-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:94:13-43
+129            android:exported="false"
+129-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:95:13-37
+130            android:theme="@style/Theme.KabuKabu" />
+130-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:96:13-50
+131
+132        <!-- TripHistoryActivity — on-device trip history (no server fetch) -->
+133        <activity
+133-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:99:9-103:52
+134            android:name="com.techducat.kabukabup2p.TripHistoryActivity"
+134-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:100:13-48
+135            android:exported="false"
+135-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:101:13-37
+136            android:parentActivityName="com.techducat.kabukabup2p.MainActivity"
+136-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:102:13-55
+137            android:theme="@style/Theme.KabuKabu" />
+137-->/home/niyid/git/kabu-kabu-p2p/app/src/main/AndroidManifest.xml:103:13-50
+138        <activity
+138-->[com.google.android.gms:play-services-base:18.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/1eccd3ed06ce6843b79bf70f76391710/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+139            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+139-->[com.google.android.gms:play-services-base:18.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/1eccd3ed06ce6843b79bf70f76391710/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+140            android:exported="false"
+140-->[com.google.android.gms:play-services-base:18.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/1eccd3ed06ce6843b79bf70f76391710/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+141            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+141-->[com.google.android.gms:play-services-base:18.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/1eccd3ed06ce6843b79bf70f76391710/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+142
+143        <meta-data
+143-->[com.google.android.gms:play-services-basement:18.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/40b63da2098dc98b4f88d10457c89fe7/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+144            android:name="com.google.android.gms.version"
+144-->[com.google.android.gms:play-services-basement:18.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/40b63da2098dc98b4f88d10457c89fe7/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+145            android:value="@integer/google_play_services_version" />
+145-->[com.google.android.gms:play-services-basement:18.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/40b63da2098dc98b4f88d10457c89fe7/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+146
+147        <uses-library
+147-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:23:9-25:40
+148            android:name="androidx.window.extensions"
+148-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:24:13-54
+149            android:required="false" />
+149-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:25:13-37
+150        <uses-library
+150-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:26:9-28:40
+151            android:name="androidx.window.sidecar"
+151-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:27:13-51
+152            android:required="false" />
+152-->[androidx.window:window:1.5.0] /home/niyid/.gradle/caches/8.11.1/transforms/f2bc2fa421beb4a64d0c894dfc08217f/transformed/window-1.5.0/AndroidManifest.xml:28:13-37
+153
+154        <provider
+154-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:24:9-32:20
+155            android:name="androidx.startup.InitializationProvider"
+155-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:25:13-67
+156            android:authorities="com.techducat.kabukabup2p.androidx-startup"
+156-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:26:13-68
+157            android:exported="false" >
+157-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:27:13-37
+158            <meta-data
+158-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:29:13-31:52
+159                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+159-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:30:17-75
+160                android:value="androidx.startup" />
+160-->[androidx.emoji2:emoji2:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/9639574a1635b2fcf8c8cf7fb9365825/transformed/emoji2-1.4.0/AndroidManifest.xml:31:17-49
+161            <meta-data
+161-->[androidx.lifecycle:lifecycle-process:2.9.4] /home/niyid/.gradle/caches/8.11.1/transforms/7be6e6961e2fe345eb3afcd38993c64c/transformed/lifecycle-process-2.9.4/AndroidManifest.xml:29:13-31:52
+162                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+162-->[androidx.lifecycle:lifecycle-process:2.9.4] /home/niyid/.gradle/caches/8.11.1/transforms/7be6e6961e2fe345eb3afcd38993c64c/transformed/lifecycle-process-2.9.4/AndroidManifest.xml:30:17-78
+163                android:value="androidx.startup" />
+163-->[androidx.lifecycle:lifecycle-process:2.9.4] /home/niyid/.gradle/caches/8.11.1/transforms/7be6e6961e2fe345eb3afcd38993c64c/transformed/lifecycle-process-2.9.4/AndroidManifest.xml:31:17-49
+164            <meta-data
+164-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+165                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+165-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+166                android:value="androidx.startup" />
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+167        </provider>
+168
+169        <service
+169-->[androidx.room:room-runtime-android:2.8.4] /home/niyid/.gradle/caches/8.11.1/transforms/88630ecdc4c620b22022cc635160d079/transformed/room-runtime/AndroidManifest.xml:24:9-28:63
+170            android:name="androidx.room.MultiInstanceInvalidationService"
+170-->[androidx.room:room-runtime-android:2.8.4] /home/niyid/.gradle/caches/8.11.1/transforms/88630ecdc4c620b22022cc635160d079/transformed/room-runtime/AndroidManifest.xml:25:13-74
+171            android:directBootAware="true"
+171-->[androidx.room:room-runtime-android:2.8.4] /home/niyid/.gradle/caches/8.11.1/transforms/88630ecdc4c620b22022cc635160d079/transformed/room-runtime/AndroidManifest.xml:26:13-43
+172            android:exported="false" />
+172-->[androidx.room:room-runtime-android:2.8.4] /home/niyid/.gradle/caches/8.11.1/transforms/88630ecdc4c620b22022cc635160d079/transformed/room-runtime/AndroidManifest.xml:27:13-37
+173
+174        <receiver
+174-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+175            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+176            android:directBootAware="false"
+176-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+177            android:enabled="true"
+177-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+178            android:exported="true"
+178-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+179            android:permission="android.permission.DUMP" >
+179-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+180            <intent-filter>
+180-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+181                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+181-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+181-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+182            </intent-filter>
+183            <intent-filter>
+183-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+184                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+184-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+184-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+185            </intent-filter>
+186            <intent-filter>
+186-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+187                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+187-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+187-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+188            </intent-filter>
+189            <intent-filter>
+189-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+190                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+190-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+190-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/niyid/.gradle/caches/8.11.1/transforms/52e7b364fd0213395ec5a5f13b6d95b4/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+191            </intent-filter>
+192        </receiver>
+193
+194        <activity
+194-->[com.bugfender.sdk:android:3.1.1] /home/niyid/.gradle/caches/8.11.1/transforms/bde569f8170f903fcf255056eb6881b0/transformed/android-3.1.1/AndroidManifest.xml:13:9-17:58
+195            android:name="com.bugfender.sdk.ui.FeedbackActivity"
+195-->[com.bugfender.sdk:android:3.1.1] /home/niyid/.gradle/caches/8.11.1/transforms/bde569f8170f903fcf255056eb6881b0/transformed/android-3.1.1/AndroidManifest.xml:14:13-65
+196            android:exported="false"
+196-->[com.bugfender.sdk:android:3.1.1] /home/niyid/.gradle/caches/8.11.1/transforms/bde569f8170f903fcf255056eb6881b0/transformed/android-3.1.1/AndroidManifest.xml:15:13-37
+197            android:theme="@style/NoActionBar"
+197-->[com.bugfender.sdk:android:3.1.1] /home/niyid/.gradle/caches/8.11.1/transforms/bde569f8170f903fcf255056eb6881b0/transformed/android-3.1.1/AndroidManifest.xml:16:13-47
+198            android:windowSoftInputMode="adjustResize" />
+198-->[com.bugfender.sdk:android:3.1.1] /home/niyid/.gradle/caches/8.11.1/transforms/bde569f8170f903fcf255056eb6881b0/transformed/android-3.1.1/AndroidManifest.xml:17:13-55
+199    </application>
+200
+201</manifest>

@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kabu_bg_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header -->
+        <TextView
+            android:id="@+id/tvAppTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="@color/kabu_amber"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingTop="16dp"
+            android:paddingBottom="4dp"/>
+
+        <!-- Privacy badge -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="🔒 P2P · No Server · I2P Encrypted"
+            android:textColor="@color/privacy_indicator"
+            android:textSize="12sp"
+            android:paddingBottom="16dp"/>
+
+        <!-- Status row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Initialising…"
+                android:textColor="@color/kabu_text_secondary"
+                android:textSize="13sp"/>
+
+            <TextView
+                android:id="@+id/tvRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Rider"
+                android:textColor="@color/kabu_amber"
+                android:textSize="13sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <!-- Zone label -->
+        <TextView
+            android:id="@+id/tvGeohash"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Zone: locating…"
+            android:textColor="@color/kabu_text_hint"
+            android:textSize="12sp"
+            android:paddingBottom="16dp"/>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/kabu_divider"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Note / description -->
+        <EditText
+            android:id="@+id/etNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/hint_note"
+            android:textColor="@color/kabu_text_primary"
+            android:textColorHint="@color/kabu_text_hint"
+            android:background="@color/kabu_input_bg"
+            android:padding="12dp"
+            android:minLines="2"
+            android:inputType="textMultiLine"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Request ride button -->
+        <Button
+            android:id="@+id/btnRequestRide"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/btn_request_ride"
+            android:textColor="@color/kabu_text_on_amber"
+            android:backgroundTint="@color/kabu_amber"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Switch role button -->
+        <Button
+            android:id="@+id/btnSwitchRole"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="@string/btn_switch_role"
+            android:textColor="@color/kabu_amber"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Offers header -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/title_offers"
+            android:textColor="@color/kabu_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingBottom="8dp"/>
+
+        <!-- Driver offers list -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvOffers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"/>
+
+    </LinearLayout>
+</ScrollView>

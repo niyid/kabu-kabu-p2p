@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="@color/kabu_surface"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- Date + role row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/tvTripDate"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/kabu_text_hint"
+                android:textSize="12sp"
+                android:text="01 Jan 2025  09:00"/>
+
+            <TextView
+                android:id="@+id/tvTripRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/kabu_amber"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:text="Rider"/>
+        </LinearLayout>
+
+        <!-- Pickup / dropoff zones -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/tvTripPickup"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/kabu_text_primary"
+                android:textSize="14sp"
+                android:drawableStart="@android:drawable/arrow_up_float"
+                android:drawablePadding="4dp"
+                android:text="Zone GCPU"/>
+
+            <TextView
+                android:id="@+id/tvTripDropoff"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/kabu_text_secondary"
+                android:textSize="14sp"
+                android:gravity="end"
+                android:text="Zone GCPV"/>
+        </LinearLayout>
+
+        <!-- Fare + status row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="6dp">
+
+            <TextView
+                android:id="@+id/tvTripFare"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/kabu_gold"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:text="₦1,200"/>
+
+            <TextView
+                android:id="@+id/tvTripStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/kabu_success"
+                android:textSize="12sp"
+                android:text="COMPLETED"/>
+        </LinearLayout>
+
+        <!-- Anon peer ID -->
+        <TextView
+            android:id="@+id/tvTripPeer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/kabu_text_hint"
+            android:textSize="11sp"
+            android:paddingTop="4dp"
+            android:text="Peer: …a1b2c3d4"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    backup_rules.xml — Kabu-Kabu P2P
+
+    Privacy: trip database and shared preferences (device ID, policy flag)
+    are EXCLUDED from Android cloud backup. All sensitive data stays on
+    the device and is never uploaded to Google's servers.
+-->
+<full-backup-content>
+    <!-- Exclude the Room database -->
+    <exclude domain="database" path="kabu_kabu.db"/>
+    <exclude domain="database" path="kabu_kabu.db-shm"/>
+    <exclude domain="database" path="kabu_kabu.db-wal"/>
+    <!-- Exclude shared preferences (contains hashed device ID) -->
+    <exclude domain="sharedpref" path="com.techducat.kabukabup2p.Prefs.xml"/>
+    <!-- Exclude I2P router config (contains cryptographic identity) -->
+    <exclude domain="file" path="i2p/"/>
+</full-backup-content>
