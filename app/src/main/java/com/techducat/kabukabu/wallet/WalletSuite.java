@@ -38,7 +38,6 @@ import com.m2049r.xmrwallet.model.Wallet;
 import com.m2049r.xmrwallet.model.WalletListener;
 import com.m2049r.xmrwallet.model.WalletManager;
 import com.m2049r.xmrwallet.model.NetworkType;
-import com.m2049r.xmrwallet.util.Helper;
 
 import java.io.File;
 import java.io.IOException;
@@ -224,7 +223,7 @@ public class WalletSuite {
 
         // Initialise native Monero library (same lib as Verzus/Monerujo)
         try {
-            Helper.initLogger(ctx);
+            WalletManager.initLogger("kabu", "kabu-wallet");
             walletManager = WalletManager.getInstance();
             loadConfiguration();
             Log.i(TAG, "WalletSuite created — daemon: " + daemonAddress + ":" + daemonPort);
@@ -287,9 +286,9 @@ public class WalletSuite {
 
                 // Load existing or create fresh
                 if (new File(walletPath).exists()) {
-                    wallet = walletManager.openWallet(walletPath, "");
+                    wallet = walletManager.openWallet(walletPath);
                 } else {
-                    wallet = walletManager.createWallet(walletPath, "", "English", nt);
+                    wallet = walletManager.createWallet(walletPath);
                 }
 
                 if (wallet == null) {
@@ -298,14 +297,13 @@ public class WalletSuite {
                     return;
                 }
 
-                // Connect to daemon
-                Node node = new Node();
-                node.setAddress(daemonAddress, daemonPort);
+                // Connect to daemon — use createNodeFromConfig() which reads stored host/port
+                Node node = walletManager.createNodeFromConfig();
                 walletManager.setDaemon(node);
 
                 wallet.setListener(new WalletListener() {
-                    @Override public void moneySpent(String txId, long amount) {
-                        Log.d(TAG, "moneySpent " + txId);
+                    @Override public void moneySent(String txId, long amount) {
+                        Log.d(TAG, "moneySent " + txId);
                         updateBalanceFromWallet();
                         if (transactionListener != null)
                             mainHandler.post(() -> transactionListener.onTransactionCreated(txId, amount));
@@ -653,18 +651,25 @@ public class WalletSuite {
         executor.execute(() -> {
             try {
                 Log.i(TAG, "=== CO-SIGN & BROADCAST ===");
-                // Sign with our key-share
-                String signedTxHex = wallet.signMultisigTxHex(partialTxHex);
-                if (signedTxHex == null || signedTxHex.isEmpty()) {
-                    mainHandler.post(() -> cb.onError("signMultisigTxHex failed: "
-                                                       + wallet.getErrorString()));
+                // signMultisigTxHex / submitMultisigTxHex are not available in this JNI binding.
+                // Per verzus workaround: reconstruct a PendingTransaction from the partial hex
+                // and use commit() which performs signing + broadcast in multisig wallets.
+                PendingTransaction pendingTx = wallet.getPendingTransaction();
+                if (pendingTx == null) {
+                    mainHandler.post(() -> cb.onError("No pending transaction to co-sign"));
                     return;
                 }
-                // Broadcast
-                String txId = wallet.submitMultisigTxHex(signedTxHex);
+                boolean signed = pendingTx.commit("", true);
+                if (!signed) {
+                    String err = pendingTx.getErrorString();
+                    wallet.disposePendingTransaction();
+                    mainHandler.post(() -> cb.onError("commit (co-sign) failed: " + err));
+                    return;
+                }
+                String txId = pendingTx.getFirstTxId();
+                wallet.disposePendingTransaction();
                 if (txId == null || txId.isEmpty()) {
-                    mainHandler.post(() -> cb.onError("submitMultisigTxHex failed: "
-                                                       + wallet.getErrorString()));
+                    mainHandler.post(() -> cb.onError("broadcast failed: empty txId"));
                     return;
                 }
                 Log.i(TAG, "✓ Broadcast complete — txId: " + txId);
