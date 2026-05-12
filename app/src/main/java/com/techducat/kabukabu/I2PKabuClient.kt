@@ -5,6 +5,7 @@ import android.util.Log
 import com.techducat.kabukabu.model.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.io.*
 import java.net.Socket
@@ -99,17 +100,20 @@ class I2PKabuClient(private val context: Context) {
     // ── Listener interfaces ───────────────────────────────────────────────────
 
     interface RideRequestHandler {
-        /** Called on main thread when a rider broadcasts a ride/courier request. */
+        /** Called on an IO thread when a rider broadcasts a ride/courier request.
+         *  Implementations must marshal to the main thread themselves (e.g. runOnUiThread). */
         fun onRideRequestReceived(request: RideRequest)
     }
 
     interface DriverOfferHandler {
-        /** Called on main thread when a driver responds to our request. */
+        /** Called on an IO thread when a driver responds to our request.
+         *  Implementations must marshal to the main thread themselves (e.g. runOnUiThread). */
         fun onDriverOfferReceived(offer: DriverOffer)
     }
 
     interface TripEventHandler {
-        /** Called on main thread for status updates during an active trip. */
+        /** Called on an IO thread for status updates during an active trip.
+         *  Implementations must marshal to the main thread themselves (e.g. runOnUiThread). */
         fun onTripEventReceived(event: TripEvent)
     }
 
@@ -188,7 +192,7 @@ class I2PKabuClient(private val context: Context) {
             put("timestamp",        request.timestamp)
             put("ttl_ms",           request.ttlMs)
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /**
@@ -208,7 +212,7 @@ class I2PKabuClient(private val context: Context) {
             offer.counterFareNGN?.let { put("counter_fare_ngn", it) }
             put("timestamp",       offer.timestamp)
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /** Accept a driver offer — opens a direct encrypted I2P tunnel. */
@@ -220,7 +224,7 @@ class I2PKabuClient(private val context: Context) {
             put("rider_id",   deviceId)
             put("timestamp",  System.currentTimeMillis())
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /** Reject a driver offer. */
@@ -231,7 +235,7 @@ class I2PKabuClient(private val context: Context) {
             put("request_id", requestId)
             put("timestamp",  System.currentTimeMillis())
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /**
@@ -248,7 +252,7 @@ class I2PKabuClient(private val context: Context) {
             put("message_text",    event.messageText)
             put("timestamp",       event.timestamp)
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /**
@@ -265,7 +269,7 @@ class I2PKabuClient(private val context: Context) {
             put("from_device_id",   deviceId)
             put("timestamp",        System.currentTimeMillis())
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     /** Update our GeoHash cell when we move to a new zone (driver going to next area). */
@@ -277,7 +281,7 @@ class I2PKabuClient(private val context: Context) {
             put("new_geohash",  newGeohash)
             put("timestamp",    System.currentTimeMillis())
         }
-        return sendMessage(json)
+        return sendMessageSuspend(json)
     }
 
     // ── Inbound message dispatch ──────────────────────────────────────────────
@@ -369,8 +373,7 @@ class I2PKabuClient(private val context: Context) {
     }
 
     private suspend fun attemptReconnect() {
-        reconnectLock.lock()
-        try {
+        reconnectLock.withLock {
             if (reconnectCount >= MAX_RECONNECT_ATTEMPTS) {
                 Log.e(TAG, "Max reconnect attempts reached"); notifyConnectionChange(false); return
             }
@@ -380,7 +383,7 @@ class I2PKabuClient(private val context: Context) {
             delay(delay)
             reconnectCount++
             initialize(deviceId, currentGeohash, currentRole)
-        } finally { reconnectLock.unlock() }
+        }
     }
 
     private fun broadcastAvailability() {
@@ -416,7 +419,7 @@ class I2PKabuClient(private val context: Context) {
         writer?.println(json.toString()); true
     } catch (e: Exception) { Log.e(TAG, "Send failed: ${e.message}"); false }
 
-    private suspend fun sendMessage(json: JSONObject, @Suppress("UNUSED_PARAMETER") dummy: Unit = Unit): Boolean =
+    private suspend fun sendMessageSuspend(json: JSONObject): Boolean =
         withContext(Dispatchers.IO) { sendMessage(json) }
 
     private fun cleanupConnection() {

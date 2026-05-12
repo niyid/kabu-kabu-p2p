@@ -36,8 +36,8 @@ class EmbeddedI2PRouter private constructor(
     companion object {
         private const val TAG               = "EmbeddedI2PRouter[KK]"
         private const val SAM_HOST          = "127.0.0.1"
-        private const val SAM_PORT          = 7657   // distinct from Buzzr's 7656
-        private const val I2P_CONFIG_DIR    = "i2p/kabukabup2p"
+        private const val SAM_PORT          = 7656   // SAM bridge default (7657 is the router console)
+        private const val I2P_CONFIG_DIR    = "i2p/kabukabu"
         private const val SAM_WAIT_TIMEOUT  = 600_000L
         private const val SAM_CHECK_INTERVAL = 5_000L
 

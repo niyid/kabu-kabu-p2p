@@ -279,7 +279,7 @@ class I2PKabuService : LifecycleService() {
                 val requestId = json.getString("request_id")
                 json.put("_received_ms", System.currentTimeMillis())
                 activeRequests[requestId] = json
-                persistTripRecord(json)
+                persistTripRecord(json, session.deviceId?.let { peerRegistry[it]?.role } ?: "rider")
                 // Fan out to all local clients (other role on same device) and I2P peers
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
@@ -355,12 +355,12 @@ class I2PKabuService : LifecycleService() {
         }
     }
 
-    private suspend fun persistTripRecord(json: JSONObject) {
+    private suspend fun persistTripRecord(json: JSONObject, localRole: String = "rider") {
         try {
             val now = System.currentTimeMillis()
             val entity = TripEntity(
                 tripId          = json.getString("request_id"),
-                localRole       = "rider",
+                localRole       = localRole,
                 peerId          = "",
                 pickupGeohash   = json.optString("pickup_geohash"),
                 dropoffGeohash  = json.optString("dropoff_geohash"),
@@ -386,7 +386,7 @@ class I2PKabuService : LifecycleService() {
     }
 
     private fun startCleanupTask() {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(CLEANUP_INTERVAL)
                 val now = System.currentTimeMillis()
@@ -397,10 +397,8 @@ class I2PKabuService : LifecycleService() {
                     now - ts > ttl
                 }
                 // Purge Room DB rows past their TTL
-                withContext(Dispatchers.IO) {
-                    val deleted = tripDao.cleanupExpired(now)
-                    if (deleted > 0) Log.i(TAG, "Purged $deleted expired trip records")
-                }
+                val deleted = tripDao.cleanupExpired(now)
+                if (deleted > 0) Log.i(TAG, "Purged $deleted expired trip records")
             }
         }
     }

@@ -200,7 +200,7 @@ class MainActivity :
             tvGeohash.text = getString(R.string.zone_label, newGeohash)
             Log.d(TAG, "Geohash updated: $old → $newGeohash")
 
-            if (isRegistered && i2pClient != null && old.isNotEmpty()) {
+            if (isRegistered && old.isNotEmpty()) {
                 lifecycleScope.launch {
                     i2pClient.updateLocation(old, newGeohash)
                 }

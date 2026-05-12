@@ -44,15 +44,15 @@ class KabuKabuApp : Application() {
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
         if (BuildConfig.BUGFENDER_KEY.isNotEmpty()) {
             Bugfender.init(this, BuildConfig.BUGFENDER_KEY, BuildConfig.DEBUG)
             Bugfender.enableCrashReporting()
             Bugfender.enableLogcatLogging()
         }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
         Log.i(TAG, "KabuKabuApp starting — P2P mode, I2P transport")
 
         // Start I2P service immediately if device is already registered
