@@ -10,7 +10,8 @@ import java.io.File
 //  Location privacy: GeoHash-5 fuzzy zones (~5 km cell)
 //    — exact GPS is NEVER sent to any server
 //  Matching: device-to-device over I2P; no central relay
-//  Payment signals: on-device only; offline cash-first model
+//  Payment: XMR (Monero) via Monerujo JNI — lifted from Verzus
+//    — 2-of-2 multisig escrow; no third-party custodian
 //  Identity: SHA-256 of phone number; no plaintext PII on network
 // ============================================================
 
@@ -21,6 +22,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    // protobuf plugin — needed by Monerujo gRPC stubs (same version as Verzus)
+    id("com.google.protobuf")
 }
 
 // ── Secrets ──────────────────────────────────────────────────────────────────
@@ -31,6 +34,38 @@ if (localPropertiesFile.exists()) {
 }
 fun getLocalProperty(key: String, defaultValue: String = ""): String =
     localProperties.getProperty(key) ?: System.getenv(key) ?: defaultValue
+
+// ── Monero daemon endpoints (mirrors Verzus) ──────────────────────────────────
+val buildEnv      = findProperty("BUILD_ENV")?.toString() ?: "STAGENET"
+val isMainnet     = buildEnv.uppercase() == "MAINNET"
+
+val stagenetDaemonHost = "stagenet.xmr-tw.org"
+val stagenetDaemonPort = 38081
+val mainnetDaemonHost  = "node.moneroworld.com"
+val mainnetDaemonPort  = 18089
+
+val daemonHost = if (isMainnet) mainnetDaemonHost else stagenetDaemonHost
+val daemonPort = if (isMainnet) mainnetDaemonPort  else stagenetDaemonPort
+
+// ── Protobuf (required by Monerujo gRPC stubs) ───────────────────────────────
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:4.30.2" }
+    plugins {
+        create("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.71.0"
+        }
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") { option("lite") }
+            }
+            task.plugins {
+                create("grpc") { option("lite") }
+            }
+        }
+    }
+}
 
 // ── Android ──────────────────────────────────────────────────────────────────
 android {
@@ -55,6 +90,12 @@ android {
         buildConfigField("int",     "I2P_SERVICE_PORT",     "8881")   // distinct from Buzzr's 8880
         buildConfigField("String",  "BUGFENDER_KEY",
             "\"${getLocalProperty("BUGFENDER_KEY")}\"")
+
+        // ── Monero / XMR build flags ──────────────────────────────────────
+        buildConfigField("boolean", "IS_MAINNET",   "$isMainnet")
+        buildConfigField("String",  "SERVER_ENV",   "\"$buildEnv\"")
+        buildConfigField("String",  "DAEMON_HOST",  "\"$daemonHost\"")
+        buildConfigField("int",     "DAEMON_PORT",  "$daemonPort")
     }
 
     lint {
@@ -72,10 +113,6 @@ android {
                 keyAlias      = getLocalProperty("RELEASE_KEY_ALIAS")
                 keyPassword   = getLocalProperty("RELEASE_KEY_PASSWORD")
             }
-            // If no keystore is configured the bundle will be unsigned.
-            // Sign manually:
-            //   jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256
-            //             -keystore your.jks app-release.aab your_alias
         }
     }
 
@@ -101,6 +138,10 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+
+            // Strip debug symbols from Monerujo .so files in release
+            isJniDebuggable = false
+            ndk { debugSymbolLevel = "NONE" }
         }
     }
 
@@ -118,10 +159,43 @@ android {
 
     kotlinOptions { jvmTarget = "17" }
 
+    // ── jniLibs packaging — required for Monerujo libmonerujo.so ─────────────
+    // jniLibs are at app/src/main/jniLibs/ (copied from Verzus)
     packaging {
-        resources {
-            excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/INDEX.LIST")
+        jniLibs {
+            // useLegacyPackaging = false ensures .so files are stored uncompressed
+            // so the OS can mmap them directly at the correct 16KB page-alignment boundary.
+            useLegacyPackaging = false
+            pickFirsts += "**/libc++_shared.so"
+            pickFirsts += "**/libjsc.so"
+            pickFirsts += "**/libmonerujo.so"
         }
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*"
+            )
+        }
+    }
+
+    // ── Source sets ───────────────────────────────────────────────────────────
+    // The Monerujo sources live under com.m2049r.xmrwallet — they are compiled
+    // directly as part of this project (same model as Verzus, no AAR needed).
+    sourceSets {
+        getByName("main") {
+            java.srcDirs("src/main/java")
+        }
+    }
+
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+        arg("dagger.fastInit", "enabled")
+        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+        arg("dagger.hilt.android.internal.projectType", "APP")
+        arg("dagger.hilt.internal.useAggregatingRootProcessor", "true")
     }
 }
 
@@ -177,7 +251,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Security — encrypted SharedPreferences for device identity
+    // Security — encrypted SharedPreferences for device identity and wallet password
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Serialization
@@ -202,9 +276,29 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("com.facebook.shimmer:shimmer:0.5.0")
 
+    // QR Code — for wallet receive address display
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("com.google.zxing:core:3.5.3")
+
     // Logging
     implementation("com.bugfender.sdk:android:3.1.1")
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // ── Monerujo / XMR wallet — gRPC stubs (same as Verzus) ──────────────────
+    // Monerujo Java sources are compiled directly from src/main/java/com/m2049r/xmrwallet/
+    // The JNI .so files live in src/main/jniLibs/ (copied from Verzus build).
+    // No external AAR is required — sources + .so files are sufficient.
+    implementation("com.google.protobuf:protobuf-kotlin-lite:4.30.2")
+    implementation("io.grpc:grpc-stub:1.71.0")
+    implementation("io.grpc:grpc-kotlin-stub:1.4.1")
+    implementation("io.grpc:grpc-protobuf-lite:1.71.0")
+    implementation("io.grpc:grpc-okhttp:1.71.0")
+
+    // Lombok — used by some Monerujo Java classes
+    compileOnly("org.projectlombok:lombok:1.18.34")
+    annotationProcessor("org.projectlombok:lombok:1.18.34")
+    testCompileOnly("org.projectlombok:lombok:1.18.34")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.34")
 
     // I2P embedded router (place built artifacts in app/libs/ — see README.md)
     if (file("libs/i2p-android-client.aar").exists()) {
@@ -237,9 +331,14 @@ configurations.all {
     resolutionStrategy {
         force("androidx.core:core:1.17.0")
         force("androidx.core:core-ktx:1.17.0")
+        force("com.google.protobuf:protobuf-javalite:4.30.2")
         dependencySubstitution {
             substitute(module("com.google.protobuf:protobuf-java"))
                 .using(module("com.google.protobuf:protobuf-javalite:4.30.2"))
+            substitute(module("com.google.protobuf:protobuf-java-util"))
+                .using(module("com.google.protobuf:protobuf-javalite:4.30.2"))
+            substitute(module("com.google.protobuf:protobuf-kotlin"))
+                .using(module("com.google.protobuf:protobuf-kotlin-lite:4.30.2"))
         }
     }
 }
