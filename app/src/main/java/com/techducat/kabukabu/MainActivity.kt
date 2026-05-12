@@ -178,7 +178,14 @@ class MainActivity :
                 override fun onWalletInitialized(success: Boolean, message: String) {
                     Log.i(TAG, "Wallet init: success=$success $message")
                     if (success) {
-                        myXmrAddress = getAddress()
+                        getAddress(object : WalletSuite.AddressCallback {
+                            override fun onAddress(address: String) {
+                                myXmrAddress = address
+                            }
+                            override fun onError(error: String) {
+                                Log.e(TAG, "getAddress failed: $error")
+                            }
+                        })
                     }
                 }
                 override fun onBalanceUpdated(balance: Long, unlocked: Long) {
@@ -320,9 +327,10 @@ class MainActivity :
      */
     private fun onDriverOfferAccepted(offer: DriverOffer) {
         pendingAcceptOffer      = offer
-        currentFareAtomicUnits  = offer.fareXmr
+        currentFareAtomicUnits  = offer.counterFareXMR ?: 0L
         currentRideId           = offer.requestId
-        currentDriverXmrAddress = offer.driverXmrAddress
+        // currentDriverXmrAddress is NOT in DriverOffer — it arrives later
+        // via the driver's "wallet_multisig_info" message over I2P
 
         // Gate: check balance before proceeding to escrow
         rideWalletManager.checkBalanceBeforeAccepting(offer)
