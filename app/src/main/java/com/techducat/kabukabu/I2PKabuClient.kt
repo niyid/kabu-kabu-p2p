@@ -438,4 +438,14 @@ class I2PKabuClient(private val context: Context) {
     private fun notifyConnectionChange(isConnected: Boolean) {
         peerStatusListeners.values.forEach { it.onConnectionStateChanged(isConnected) }
     }
+
+    /**
+     * Send a raw JSON string directly to the local I2PKabuService TCP socket.
+     * Used by the XMR wallet flow to relay multisig and partial-TX messages
+     * over I2P without going through the typed ride-request helpers.
+     */
+    fun sendRawMessage(json: String) {
+        try { writer?.println(json) }
+        catch (e: Exception) { Log.e(TAG, "sendRawMessage failed: ${e.message}") }
+    }
 }

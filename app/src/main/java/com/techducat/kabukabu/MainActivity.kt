@@ -3,6 +3,7 @@ package com.techducat.kabukabu
 import android.Manifest
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
@@ -22,10 +23,14 @@ import com.techducat.kabukabu.model.*
 import com.techducat.kabukabu.service.I2PKabuService
 import com.techducat.kabukabu.ui.OfferAdapter
 import com.techducat.kabukabu.ui.RequestAdapter
+import com.techducat.kabukabu.wallet.RideWalletManager
+import com.techducat.kabukabu.wallet.WalletActivity
+import com.techducat.kabukabu.wallet.WalletSuite
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -48,6 +53,11 @@ import java.util.UUID
  *
  *  4. Incoming driver offers show only the driver's vehicle type, ETA,
  *     rating score, and geohash zone — never their real name or phone.
+ *
+ *  5. XMR payment uses 2-of-2 multisig escrow via Monerujo JNI.
+ *     Balance is checked before accepting an offer; escrow is funded
+ *     atomically and only released when both parties co-sign on trip
+ *     completion.  No central custodian.
  */
 @AndroidEntryPoint
 class MainActivity :
@@ -75,6 +85,15 @@ class MainActivity :
     private var policyAccepted:             Boolean = false
     private var isRegistered:               Boolean = false
     private var currentRole:                String = "rider"
+
+    // ── XMR / wallet state ────────────────────────────────────────────────────
+
+    private lateinit var rideWalletManager:     RideWalletManager
+    private var currentFareAtomicUnits:         Long   = 0L
+    private var currentRideId:                  String = ""
+    private var currentDriverXmrAddress:        String = ""
+    private var myXmrAddress:                   String = ""
+    private var pendingAcceptOffer:             DriverOffer? = null
 
     // ── Location ──────────────────────────────────────────────────────────────
 
@@ -151,6 +170,25 @@ class MainActivity :
         } else {
             showPhoneRegistrationDialog()
         }
+
+        // Initialise XMR wallet
+        rideWalletManager = RideWalletManager(this)
+        WalletSuite.getInstance(this).apply {
+            setStatusListener(object : WalletSuite.WalletStatusListener {
+                override fun onWalletInitialized(success: Boolean, message: String) {
+                    Log.i(TAG, "Wallet init: success=$success $message")
+                    if (success) {
+                        myXmrAddress = getAddress()
+                    }
+                }
+                override fun onBalanceUpdated(balance: Long, unlocked: Long) {
+                    Log.d(TAG, "Balance: ${WalletSuite.convertAtomicToXmr(unlocked)} XMR unlocked")
+                }
+                override fun onSyncProgress(height: Long, start: Long, end: Long, pct: Double) {}
+            })
+            initializeWallet(deviceId)
+        }
+        rideWalletManager.setPaymentListener(walletPaymentListener)
     }
 
     private fun registerDevice(phoneNumber: String) {
@@ -251,12 +289,11 @@ class MainActivity :
             return
         }
         val note = etNote.text.toString().trim()
-        // Dropoff geohash is left empty at this stage; driver will confirm pick-up first.
         val request = RideRequest(
             requestId       = UUID.randomUUID().toString(),
             riderId         = deviceId,
             pickupGeohash   = lastKnownGeohash,
-            dropoffGeohash  = "",   // rider describes destination in note until map tap is added
+            dropoffGeohash  = "",
             serviceType     = if (currentRole == "courier_sender") ServiceType.COURIER else ServiceType.TAXI,
             fareEstimateXMR = estimateFare(),
             noteForDriver   = note,
@@ -271,13 +308,132 @@ class MainActivity :
         }
     }
 
-    /** Simple fare estimate based on geohash cell size. Real implementation uses osrm offline. */
-    private fun estimateFare(): Long = 500L   // ɱ500 base (mc) — placeholder
+    /** Simple fare estimate — placeholder until osrm offline routing is added. */
+    private fun estimateFare(): Long = 500L   // ɱ500 base (mc)
+
+    // ── XMR wallet — offer acceptance gate ────────────────────────────────────
+
+    /**
+     * Called when the rider taps "Accept" on a DriverOffer.
+     * Balance is checked first; the offer is only sent if sufficient XMR
+     * is available to cover the fare.
+     */
+    private fun onDriverOfferAccepted(offer: DriverOffer) {
+        pendingAcceptOffer      = offer
+        currentFareAtomicUnits  = offer.fareXmr
+        currentRideId           = offer.requestId
+        currentDriverXmrAddress = offer.driverXmrAddress
+
+        // Gate: check balance before proceeding to escrow
+        rideWalletManager.checkBalanceBeforeAccepting(offer)
+        // Result delivered to walletPaymentListener.onBalanceCheckResult()
+    }
+
+    // ── XMR wallet — escrow setup ─────────────────────────────────────────────
+
+    private fun startEscrowSetup() {
+        rideWalletManager.prepareLocalEscrow(
+            onReady = { myInfo, myAddress ->
+                Log.i(TAG, "Escrow prepared — relaying multisig info to driver over I2P")
+                val walletMsg = JSONObject().apply {
+                    put("type",      "wallet_multisig_info")
+                    put("info",      myInfo)
+                    put("address",   myAddress)
+                    put("fare_xmr",  currentFareAtomicUnits)
+                    put("ride_id",   currentRideId)
+                    put("is_rider",  true)
+                }
+                i2pClient.sendRawMessage(walletMsg.toString())
+            },
+            onError = { error ->
+                runOnUiThread { tvStatus.text = "Escrow setup failed: $error" }
+            }
+        )
+    }
+
+    // ── XMR wallet — payment listener ────────────────────────────────────────
+
+    private val walletPaymentListener = object : RideWalletManager.RidePaymentListener {
+
+        override fun onBalanceCheckResult(
+            sufficient:   Boolean,
+            unlockedXmr:  String,
+            fareXmr:      String,
+            shortfallXmr: String
+        ) {
+            if (sufficient) {
+                // Balance OK — accept the offer and set up escrow
+                val offer = pendingAcceptOffer ?: return
+                lifecycleScope.launch {
+                    i2pClient.acceptOffer(offer.offerId, offer.requestId)
+                }
+                startEscrowSetup()
+            } else {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Insufficient XMR")
+                    .setMessage(
+                        "Fare: $fareXmr XMR\n" +
+                        "Your balance: $unlockedXmr XMR\n\n" +
+                        "Please top up $shortfallXmr XMR before booking."
+                    )
+                    .setPositiveButton("Open Wallet") { _, _ ->
+                        startActivity(Intent(this@MainActivity, WalletActivity::class.java))
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        }
+
+        override fun onEscrowReady(escrowAddress: String) {
+            Log.i(TAG, "Escrow ready: ${escrowAddress.take(16)}…")
+            runOnUiThread { tvStatus.text = "Escrow locked — ride approved" }
+        }
+
+        override fun onEscrowFunded(escrowAddress: String) {
+            Log.i(TAG, "Escrow funded: ${escrowAddress.take(16)}…")
+            runOnUiThread { tvStatus.text = "Fare locked in escrow — driver notified" }
+            val msg = JSONObject().apply {
+                put("type",          "wallet_escrow_ready")
+                put("escrow_address", escrowAddress)
+                put("ride_id",       currentRideId)
+                put("funded",        true)
+            }
+            i2pClient.sendRawMessage(msg.toString())
+        }
+
+        override fun onPaymentReleased(txId: String) {
+            Log.i(TAG, "Payment released — txId: $txId")
+            runOnUiThread {
+                tvStatus.text = "Payment complete ✓"
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Ride Paid")
+                    .setMessage("XMR payment sent.\nTransaction: ${txId.take(16)}…")
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        }
+
+        override fun onRefundComplete(txId: String) {
+            Log.i(TAG, "Refund complete — txId: $txId")
+            runOnUiThread { tvStatus.text = "Refund processed ✓" }
+        }
+
+        override fun onPaymentError(phase: String, error: String) {
+            Log.e(TAG, "Payment error in $phase: $error")
+            runOnUiThread {
+                tvStatus.text = "Payment error: $error"
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Wallet Error")
+                    .setMessage("Phase: $phase\n\n$error")
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        }
+    }
 
     // ── I2PKabuClient callbacks ───────────────────────────────────────────────
 
     override fun onRideRequestReceived(request: RideRequest) {
-        // Only drivers see incoming ride requests (MainActivity is rider mode)
         Log.d(TAG, "Ride request received (rider mode — ignoring): ${request.requestId}")
     }
 
@@ -291,14 +447,41 @@ class MainActivity :
 
     override fun onTripEventReceived(event: TripEvent) {
         runOnUiThread {
-            val msg = when (event.eventType) {
-                TripEventType.DRIVER_EN_ROUTE  -> getString(R.string.event_en_route)
-                TripEventType.DRIVER_ARRIVED   -> getString(R.string.event_arrived)
-                TripEventType.TRIP_STARTED     -> getString(R.string.event_trip_started)
-                TripEventType.TRIP_COMPLETED   -> getString(R.string.event_trip_completed)
-                TripEventType.TRIP_CANCELLED   -> getString(R.string.event_trip_cancelled)
+            when (event.eventType) {
+                TripEventType.TRIP_COMPLETED -> {
+                    tvStatus.text = getString(R.string.event_trip_completed)
+                    // Release escrow to driver — rider is first signer
+                    rideWalletManager.onTripCompleted(
+                        event               = event,
+                        isRider             = true,
+                        driverXmrAddress    = currentDriverXmrAddress,
+                        fareAtomicUnits     = currentFareAtomicUnits,
+                        peerPartialTxHex    = null,
+                        onNeedPeerSignature = { partialTxHex ->
+                            val msg = JSONObject().apply {
+                                put("type",           "wallet_partial_tx")
+                                put("partial_tx_hex", partialTxHex)
+                                put("driver_address", currentDriverXmrAddress)
+                                put("fare_xmr",       currentFareAtomicUnits)
+                                put("ride_id",        currentRideId)
+                            }
+                            i2pClient.sendRawMessage(msg.toString())
+                        }
+                    )
+                }
+                TripEventType.TRIP_CANCELLED -> {
+                    tvStatus.text = getString(R.string.event_trip_cancelled)
+                    // Refund escrow back to rider
+                    rideWalletManager.refundToRider(
+                        riderXmrAddress    = myXmrAddress,
+                        fareAtomicUnits    = currentFareAtomicUnits,
+                        peerSignatureInfos = emptyList()
+                    )
+                }
+                TripEventType.DRIVER_EN_ROUTE -> tvStatus.text = getString(R.string.event_en_route)
+                TripEventType.DRIVER_ARRIVED  -> tvStatus.text = getString(R.string.event_arrived)
+                TripEventType.TRIP_STARTED    -> tvStatus.text = getString(R.string.event_trip_started)
             }
-            tvStatus.text = msg
         }
     }
 
@@ -370,12 +553,8 @@ class MainActivity :
 
     private fun setupRecyclerView() {
         offerAdapter = OfferAdapter(receivedOffers) { offer ->
-            lifecycleScope.launch {
-                i2pClient.acceptOffer(offer.offerId, offer.requestId)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, R.string.offer_accepted, Toast.LENGTH_SHORT).show()
-                }
-            }
+            // Route through balance check before accepting
+            onDriverOfferAccepted(offer)
         }
         rvOffers.layoutManager = LinearLayoutManager(this)
         rvOffers.adapter = offerAdapter

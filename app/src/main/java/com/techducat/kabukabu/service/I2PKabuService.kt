@@ -19,6 +19,8 @@ import com.techducat.kabukabu.db.KabuDatabase
 import com.techducat.kabukabu.db.TripDao
 import com.techducat.kabukabu.db.TripEntity
 import com.techducat.kabukabu.network.EmbeddedI2PRouter
+import com.techducat.kabukabu.wallet.RideWalletManager
+import com.techducat.kabukabu.wallet.WalletSuite
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -32,26 +34,14 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * I2PKabuService — privacy-first foreground service for Kabu-Kabu P2P.
  *
- * Adapted directly from buzzr-p2p/service/I2PBuzzrService.kt.
- * All Buzzr incident/community-alert logic replaced with
- * ride-matching and courier-dispatch logic.
- *
  * WHAT THIS SERVICE DOES:
- *  1. Starts the embedded I2P router (EmbeddedI2PRouter) so all peer
- *     traffic is anonymised through the I2P network.
- *  2. Binds a local TCP server on 127.0.0.1:8881 that the Android UI
- *     (I2PKabuClient) connects to for read/write of P2P messages.
- *  3. Routes ride requests, driver offers, and trip events between the
- *     I2P network and the local UI client.
+ *  1. Starts the embedded I2P router so all peer traffic is anonymised.
+ *  2. Binds a local TCP server on 127.0.0.1:8881 for the UI (I2PKabuClient).
+ *  3. Routes ride requests, driver offers, trip events, and XMR wallet
+ *     messages between the I2P network and the local UI client.
  *  4. Persists trips in the on-device Room database (TripDao).
- *  5. Runs a periodic cleanup job to expire old trip records.
- *
- * PRIVACY GUARANTEES:
- *  - This service never opens a connection to a central server.
- *  - Ride requests only contain GeoHash-5 cells, not raw GPS.
- *  - Driver/rider identities are SHA-256 hashes of phone numbers.
- *  - All external traffic passes through I2P garlic routing.
- *  - On-device trip data is automatically purged after 30 days.
+ *  5. Handles 2-of-2 multisig escrow message flows on behalf of both
+ *     rider and driver devices.
  */
 class I2PKabuService : LifecycleService() {
 
@@ -59,9 +49,16 @@ class I2PKabuService : LifecycleService() {
         private const val TAG              = "I2PKabuService"
         private const val SERVICE_CHANNEL  = "I2PKabuServiceChannel"
         private const val LOCAL_PORT       = BuildConfig.I2P_SERVICE_PORT
-        private const val CLEANUP_INTERVAL = 2 * 60 * 60 * 1000L      // 2 hours
-        private const val PEER_SYNC_WINDOW = 24 * 60 * 60 * 1000L     // 24 hours
+        private const val CLEANUP_INTERVAL = 2 * 60 * 60 * 1000L
+        private const val PEER_SYNC_WINDOW = 24 * 60 * 60 * 1000L
         private const val MAX_ACTIVE_REQUESTS = 200
+
+        // ── XMR wallet message types ──────────────────────────────────────────
+        const val MSG_TYPE_WALLET_MULTISIG_INFO = "wallet_multisig_info"
+        const val MSG_TYPE_WALLET_ESCROW_READY  = "wallet_escrow_ready"
+        const val MSG_TYPE_WALLET_PARTIAL_TX    = "wallet_partial_tx"
+        const val MSG_TYPE_WALLET_TX_CONFIRMED  = "wallet_tx_confirmed"
+        const val MSG_TYPE_WALLET_REFUND_REQ    = "wallet_refund_req"
 
         @Volatile private var instance: I2PKabuService? = null
         fun getInstance(): I2PKabuService? = instance
@@ -79,29 +76,26 @@ class I2PKabuService : LifecycleService() {
         } catch (_: Exception) { false }
     }
 
-    // ── State ────────────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
 
     private lateinit var tripDao: TripDao
     private var embeddedRouter: EmbeddedI2PRouter? = null
     private var deviceId: String = ""
 
-    /** Local TCP server that I2PKabuClient connects to. */
     private var serverSocket: ServerSocket? = null
     private val localClients = CopyOnWriteArrayList<ClientSession>()
     private var serverJob: Job? = null
 
-    /**
-     * In-memory cache of open ride requests keyed by requestId.
-     * Backed by the Room DB for persistence across service restarts.
-     */
     private val activeRequests = ConcurrentHashMap<String, JSONObject>()
+    private val peerRegistry   = ConcurrentHashMap<String, PeerRecord>()
 
-    /** Known peers: deviceId → last-seen geohash + role */
-    private val peerRegistry  = ConcurrentHashMap<String, PeerRecord>()
+    // ── XMR wallet ────────────────────────────────────────────────────────────
+
+    private lateinit var rideWalletManager: RideWalletManager
 
     private var wakeLock: PowerManager.WakeLock? = null
 
-    // ── Lifecycle ────────────────────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate() {
         super.onCreate()
@@ -109,6 +103,10 @@ class I2PKabuService : LifecycleService() {
         tripDao  = KabuDatabase.getInstance(applicationContext).tripDao()
         deviceId = getSharedPreferences(KabuKabuApp.PREFS_NAME, MODE_PRIVATE)
             .getString(KabuKabuApp.KEY_DEVICE_ID, "") ?: ""
+
+        rideWalletManager = RideWalletManager(this)
+        WalletSuite.getInstance(this).initializeWallet(deviceId)
+
         Log.i(TAG, "I2PKabuService starting (P2P mode)…")
         acquireWakeLock()
         startForeground(2, buildNotification())
@@ -133,7 +131,7 @@ class I2PKabuService : LifecycleService() {
 
     override fun onBind(intent: Intent): IBinder? { super.onBind(intent); return null }
 
-    // ── Notification ─────────────────────────────────────────────────────────
+    // ── Notification ──────────────────────────────────────────────────────────
 
     private fun buildNotification(): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -154,7 +152,7 @@ class I2PKabuService : LifecycleService() {
     private fun acquireWakeLock() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "KabuKabuApp:I2PKabuWakeLock")
-        wakeLock?.acquire(10 * 60 * 60 * 1000L)   // max 10 hours; re-acquired as needed
+        wakeLock?.acquire(10 * 60 * 60 * 1000L)
     }
 
     // ── I2P Router ────────────────────────────────────────────────────────────
@@ -177,7 +175,7 @@ class I2PKabuService : LifecycleService() {
 
     private fun wireI2PReceiveListener() {
         try {
-            val cls      = Class.forName("com.techducat.kabukabu.network.I2PTransport")
+            val cls         = Class.forName("com.techducat.kabukabu.network.I2PTransport")
             val getInstance = cls.getMethod("getInstance", Context::class.java, String::class.java)
             val transport   = getInstance.invoke(null, applicationContext, deviceId)
             val setListener = cls.getMethod("setReceiveListener", Function1::class.java)
@@ -269,18 +267,15 @@ class I2PKabuService : LifecycleService() {
                     put("status",  "ok")
                     put("version", "1.0")
                 }.toString())
-                // Push any open requests relevant to this geohash to the newly connected peer
                 pushRelevantRequests(geohash, session)
                 Log.i(TAG, "Local client handshake: $deviceId @ $geohash ($role)")
             }
 
             "ride_request" -> {
-                // Validate & store
                 val requestId = json.getString("request_id")
                 json.put("_received_ms", System.currentTimeMillis())
                 activeRequests[requestId] = json
                 persistTripRecord(json, session.deviceId?.let { peerRegistry[it]?.role } ?: "rider")
-                // Fan out to all local clients (other role on same device) and I2P peers
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
                 Log.i(TAG, "Ride request fanned out: $requestId")
@@ -292,10 +287,10 @@ class I2PKabuService : LifecycleService() {
             }
 
             "location_update" -> {
-                val deviceId   = json.optString("device_id")
+                val id         = json.optString("device_id")
                 val newGeohash = json.optString("new_geohash")
-                peerRegistry[deviceId]?.let { rec ->
-                    peerRegistry[deviceId] = rec.copy(geohash = newGeohash, lastSeen = System.currentTimeMillis())
+                peerRegistry[id]?.let { rec ->
+                    peerRegistry[id] = rec.copy(geohash = newGeohash, lastSeen = System.currentTimeMillis())
                 }
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
@@ -330,11 +325,142 @@ class I2PKabuService : LifecycleService() {
                 session.deviceId?.let { peerRegistry.remove(it) }
             }
 
+            // ── XMR wallet message types ──────────────────────────────────────
+
+            MSG_TYPE_WALLET_MULTISIG_INFO -> handleWalletMultisigInfo(json, session)
+            MSG_TYPE_WALLET_PARTIAL_TX    -> handleWalletPartialTx(json, session)
+            MSG_TYPE_WALLET_REFUND_REQ    -> handleWalletRefundRequest(json, session)
+
             else -> Log.w(TAG, "Unknown local message type: $type")
         }
     }
 
+    // ── XMR wallet message handlers ───────────────────────────────────────────
+
+    /**
+     * Peer sent their multisig info. We finalise our side of the escrow,
+     * then confirm the escrow address back over I2P.
+     */
+    private fun handleWalletMultisigInfo(json: JSONObject, session: ClientSession) {
+        val peerInfo   = json.optString("info", "")
+        val fareAtomic = json.optLong("fare_xmr", 0L)
+        val isRider    = json.optBoolean("is_rider", false)
+        val rideId     = json.optString("ride_id", "")
+
+        if (peerInfo.isEmpty()) { Log.w(TAG, "Empty multisig info — ignoring"); return }
+        Log.i(TAG, "handleWalletMultisigInfo: rideId=$rideId peerIsRider=$isRider")
+
+        val rwm = RideWalletManager(this)
+        // Driver does not fund escrow; only the rider sends fare
+        rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else fareAtomic)
+
+        rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {
+            override fun onEscrowReady(escrowAddress: String) {
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",          MSG_TYPE_WALLET_ESCROW_READY)
+                    put("escrow_address", escrowAddress)
+                    put("ride_id",       rideId)
+                }.toString())
+            }
+            override fun onEscrowFunded(escrowAddress: String) {
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",          MSG_TYPE_WALLET_ESCROW_READY)
+                    put("escrow_address", escrowAddress)
+                    put("ride_id",       rideId)
+                    put("funded",        true)
+                }.toString())
+            }
+            override fun onPaymentReleased(txId: String) {
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",    MSG_TYPE_WALLET_TX_CONFIRMED)
+                    put("tx_id",   txId)
+                    put("ride_id", rideId)
+                }.toString())
+            }
+            override fun onRefundComplete(txId: String) {
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",    MSG_TYPE_WALLET_TX_CONFIRMED)
+                    put("tx_id",   txId)
+                    put("ride_id", rideId)
+                    put("refund",  true)
+                }.toString())
+            }
+            override fun onBalanceCheckResult(s: Boolean, u: String, f: String, sh: String) {}
+            override fun onPaymentError(phase: String, error: String) {
+                Log.e(TAG, "Escrow error in $phase: $error")
+            }
+        })
+    }
+
+    /**
+     * Peer (rider) sent their partial TX hex. We co-sign and broadcast.
+     */
+    private fun handleWalletPartialTx(json: JSONObject, session: ClientSession) {
+        val partialTxHex  = json.optString("partial_tx_hex", "")
+        val driverAddress = json.optString("driver_address", "")
+        val rideId        = json.optString("ride_id", "")
+
+        if (partialTxHex.isEmpty() || driverAddress.isEmpty()) {
+            Log.w(TAG, "Invalid wallet_partial_tx payload"); return
+        }
+        Log.i(TAG, "handleWalletPartialTx: rideId=$rideId — co-signing")
+
+        WalletSuite.getInstance(this).coSignAndBroadcast(
+            partialTxHex,
+            driverAddress,
+            object : WalletSuite.PaymentReleaseCallback {
+                override fun onSuccess(txId: String, amountAtomic: Long) {
+                    Log.i(TAG, "✓ Payment broadcast: rideId=$rideId txId=$txId")
+                    broadcastToLocalClients(JSONObject().apply {
+                        put("type",    MSG_TYPE_WALLET_TX_CONFIRMED)
+                        put("tx_id",   txId)
+                        put("ride_id", rideId)
+                    }.toString())
+                }
+                override fun onError(error: String) {
+                    Log.e(TAG, "coSignAndBroadcast error: $error")
+                }
+            }
+        )
+    }
+
+    /**
+     * Peer requested a refund (trip cancelled or dispute).
+     */
+    private fun handleWalletRefundRequest(json: JSONObject, session: ClientSession) {
+        val riderAddress = json.optString("rider_address", "")
+        val fareAtomic   = json.optLong("fare_xmr", 0L)
+        val rideId       = json.optString("ride_id", "")
+
+        if (riderAddress.isEmpty()) { Log.w(TAG, "Empty rider address in refund req"); return }
+        Log.i(TAG, "handleWalletRefundRequest: rideId=$rideId")
+
+        val rwm = RideWalletManager(this)
+        rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {
+            override fun onRefundComplete(txId: String) {
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",    MSG_TYPE_WALLET_TX_CONFIRMED)
+                    put("tx_id",   txId)
+                    put("ride_id", rideId)
+                    put("refund",  true)
+                }.toString())
+            }
+            override fun onPaymentError(phase: String, error: String) {
+                Log.e(TAG, "Refund error in $phase: $error")
+            }
+            override fun onEscrowReady(a: String) {}
+            override fun onEscrowFunded(a: String) {}
+            override fun onBalanceCheckResult(s: Boolean, u: String, f: String, sh: String) {}
+            override fun onPaymentReleased(txId: String) {}
+        })
+        rwm.refundToRider(riderAddress, fareAtomic, emptyList())
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    internal fun broadcastToLocalClients(msg: String) {
+        localClients.forEach { it.send(msg) }
+    }
 
     private fun fanOutToLocalClients(json: JSONObject, excludeSession: ClientSession? = null) {
         val msg = json.toString()
@@ -343,7 +469,7 @@ class I2PKabuService : LifecycleService() {
 
     private fun sendOverI2P(json: JSONObject) {
         try {
-            val cls      = Class.forName("com.techducat.kabukabu.network.I2PTransport")
+            val cls         = Class.forName("com.techducat.kabukabu.network.I2PTransport")
             val getInstance = cls.getMethod("getInstance", Context::class.java, String::class.java)
             val transport   = getInstance.invoke(null, applicationContext, deviceId)
             val broadcast   = cls.getMethod("broadcast", ByteArray::class.java)
@@ -359,18 +485,18 @@ class I2PKabuService : LifecycleService() {
         try {
             val now = System.currentTimeMillis()
             val entity = TripEntity(
-                tripId          = json.getString("request_id"),
-                localRole       = localRole,
-                peerId          = "",
-                pickupGeohash   = json.optString("pickup_geohash"),
-                dropoffGeohash  = json.optString("dropoff_geohash"),
-                serviceType     = json.optString("service_type", "TAXI"),
-                fareXmr         = json.optLong("fare_estimate_xmr", 0),
-                status          = "OPEN",
-                note            = json.optString("note"),
-                timestamp       = json.optLong("timestamp", now),
-                expiresAt       = now + TripEntity.TRIP_RETENTION_MS,
-                isLocalOrigin   = false
+                tripId         = json.getString("request_id"),
+                localRole      = localRole,
+                peerId         = "",
+                pickupGeohash  = json.optString("pickup_geohash"),
+                dropoffGeohash = json.optString("dropoff_geohash"),
+                serviceType    = json.optString("service_type", "TAXI"),
+                fareXmr        = json.optLong("fare_estimate_xmr", 0),
+                status         = "OPEN",
+                note           = json.optString("note"),
+                timestamp      = json.optLong("timestamp", now),
+                expiresAt      = now + TripEntity.TRIP_RETENTION_MS,
+                isLocalOrigin  = false
             )
             tripDao.insertTrip(entity)
         } catch (e: Exception) {
@@ -379,7 +505,7 @@ class I2PKabuService : LifecycleService() {
     }
 
     private fun pushRelevantRequests(geohash: String, session: ClientSession) {
-        val prefix = geohash.take(4)   // ~20 km neighbourhood
+        val prefix = geohash.take(4)
         activeRequests.values
             .filter { it.optString("pickup_geohash").startsWith(prefix) }
             .forEach { session.send(it.toString()) }
@@ -390,13 +516,11 @@ class I2PKabuService : LifecycleService() {
             while (isActive) {
                 delay(CLEANUP_INTERVAL)
                 val now = System.currentTimeMillis()
-                // Remove expired in-memory requests
                 activeRequests.entries.removeAll { entry ->
                     val ttl = entry.value.optLong("ttl_ms", 10 * 60 * 1000L)
                     val ts  = entry.value.optLong("_received_ms", 0L)
                     now - ts > ttl
                 }
-                // Purge Room DB rows past their TTL
                 val deleted = tripDao.cleanupExpired(now)
                 if (deleted > 0) Log.i(TAG, "Purged $deleted expired trip records")
             }
