@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Kabu-Kabu</string>
+    <string name="app_name">Kabu²</string>
 
     <!-- Onboarding / registration -->
     <string name="privacy_title">Your Privacy Matters</string>
