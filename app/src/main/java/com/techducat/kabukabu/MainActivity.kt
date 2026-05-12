@@ -179,7 +179,7 @@ class MainActivity :
                     Log.i(TAG, "Wallet init: success=$success $message")
                     if (success) {
                         getAddress(object : WalletSuite.AddressCallback {
-                            override fun onAddress(address: String) {
+                            override fun onSuccess(address: String) {
                                 myXmrAddress = address
                             }
                             override fun onError(error: String) {
