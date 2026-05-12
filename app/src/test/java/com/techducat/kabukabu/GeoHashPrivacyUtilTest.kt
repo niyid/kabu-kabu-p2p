@@ -20,15 +20,15 @@ import org.junit.Test
  */
 class GeoHashPrivacyUtilTest {
 
-    // Lagos Island approximate coordinates
+    // Zone A approximate coordinates (sample; swap for your locale)
     private val lagosIslandLat =  6.4531
     private val lagosIslandLng =  3.3958
 
-    // Victoria Island (~3 km from Lagos Island)
+    // Zone B (~3 km from Zone A)
     private val victoriaIslandLat =  6.4281
     private val victoriaIslandLng =  3.4219
 
-    // Abuja (~800 km away)
+    // Zone C (~800 km away)
     private val abujaLat =  9.0765
     private val abujaLng =  7.3986
 
@@ -65,7 +65,7 @@ class GeoHashPrivacyUtilTest {
         val lagosCell = toMatchCell(lagosIslandLat, lagosIslandLng)
         val abujaCell = toMatchCell(abujaLat, abujaLng)
         assertNotEquals(
-            "Lagos and Abuja (~800 km apart) must have different cells",
+            "Zone A and Zone C (~800 km apart) must have different cells",
             lagosCell, abujaCell
         )
     }
@@ -131,7 +131,7 @@ class GeoHashPrivacyUtilTest {
     fun `isNearby returns false for distant cells`() {
         val lagos = toMatchCell(lagosIslandLat, lagosIslandLng)
         val abuja = toMatchCell(abujaLat, abujaLng)
-        assertFalse("Lagos and Abuja are not nearby", isNearby(lagos, abuja))
+        assertFalse("Zone A and Zone C are not nearby", isNearby(lagos, abuja))
     }
 
     @Test

@@ -258,7 +258,7 @@ class MainActivity :
             pickupGeohash   = lastKnownGeohash,
             dropoffGeohash  = "",   // rider describes destination in note until map tap is added
             serviceType     = if (currentRole == "courier_sender") ServiceType.COURIER else ServiceType.TAXI,
-            fareEstimateNGN = estimateFare(),
+            fareEstimateXMR = estimateFare(),
             noteForDriver   = note,
             timestamp       = System.currentTimeMillis()
         )
@@ -272,7 +272,7 @@ class MainActivity :
     }
 
     /** Simple fare estimate based on geohash cell size. Real implementation uses osrm offline. */
-    private fun estimateFare(): Long = 500L   // ₦500 base — placeholder
+    private fun estimateFare(): Long = 500L   // ɱ500 base (mc) — placeholder
 
     // ── I2PKabuClient callbacks ───────────────────────────────────────────────
 

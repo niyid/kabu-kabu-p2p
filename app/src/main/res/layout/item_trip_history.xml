@@ -85,7 +85,7 @@
                 android:textColor="@color/kabu_gold"
                 android:textStyle="bold"
                 android:textSize="15sp"
-                android:text="₦1,200"/>
+                android:text="ɱ1,200"/>
 
             <TextView
                 android:id="@+id/tvTripStatus"

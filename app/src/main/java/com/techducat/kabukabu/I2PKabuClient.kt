@@ -187,7 +187,7 @@ class I2PKabuClient(private val context: Context) {
             put("pickup_geohash",   request.pickupGeohash)     // ~5 km cell
             put("dropoff_geohash",  request.dropoffGeohash)    // ~5 km cell
             put("service_type",     request.serviceType.name)
-            put("fare_estimate_ngn",request.fareEstimateNGN)
+            put("fare_estimate_xmr",request.fareEstimateXMR)
             put("note",             request.noteForDriver)
             put("timestamp",        request.timestamp)
             put("ttl_ms",           request.ttlMs)
@@ -209,7 +209,7 @@ class I2PKabuClient(private val context: Context) {
             put("eta_minutes",     offer.etaMinutes)
             put("vehicle_type",    offer.vehicleType)
             put("rating_score",    offer.ratingScore)
-            offer.counterFareNGN?.let { put("counter_fare_ngn", it) }
+            offer.counterFareXMR?.let { put("counter_fare_xmr", it) }
             put("timestamp",       offer.timestamp)
         }
         return sendMessageSuspend(json)
@@ -295,7 +295,7 @@ class I2PKabuClient(private val context: Context) {
                     pickupGeohash   = json.getString("pickup_geohash"),
                     dropoffGeohash  = json.getString("dropoff_geohash"),
                     serviceType     = ServiceType.valueOf(json.getString("service_type")),
-                    fareEstimateNGN = json.getLong("fare_estimate_ngn"),
+                    fareEstimateXMR = json.getLong("fare_estimate_xmr"),
                     noteForDriver   = json.optString("note"),
                     timestamp       = json.getLong("timestamp")
                 )
@@ -310,7 +310,7 @@ class I2PKabuClient(private val context: Context) {
                     etaMinutes     = json.getInt("eta_minutes"),
                     vehicleType    = json.getString("vehicle_type"),
                     ratingScore    = json.getDouble("rating_score").toFloat(),
-                    counterFareNGN = if (json.has("counter_fare_ngn")) json.getLong("counter_fare_ngn") else null,
+                    counterFareXMR = if (json.has("counter_fare_xmr")) json.getLong("counter_fare_xmr") else null,
                     timestamp      = json.getLong("timestamp")
                 )
                 driverOfferListeners.values.forEach { it.onDriverOfferReceived(offer) }

@@ -49,8 +49,8 @@ data class TripEntity(
     @ColumnInfo(name = "service_type")
     val serviceType: String,    // "TAXI" | "COURIER"
 
-    @ColumnInfo(name = "fare_ngn")
-    val fareNgn: Long,
+    @ColumnInfo(name = "fare_xmr")
+    val fareXmr: Long,
 
     @ColumnInfo(name = "status")
     val status: String,         // see RequestStatus enum

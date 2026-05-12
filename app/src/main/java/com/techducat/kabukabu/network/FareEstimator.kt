@@ -9,30 +9,30 @@ import kotlin.math.*
  * No pricing server is contacted. Fares are computed from:
  *   1. Approximate distance between two GeoHash-5 cells (Haversine formula
  *      applied to the cell centres).
- *   2. A locally-stored rate table for Lagos / Nigerian market rates.
+ *   2. A locally-stored rate table of generic market rates (XMR millicents).
  *   3. A time-of-day multiplier (peak hours).
  *
  * Privacy: all inputs and outputs stay on-device. The fare estimate
- * carried in [RideRequest.fareEstimateNGN] is computed here before
+ * carried in [RideRequest.fareEstimateXMR] is computed here before
  * being broadcast, so the server (which doesn't exist) never needs
  * to know how it was derived.
  *
- * Rate table (as of Q1 2025, Lagos):
- *   Base flag-fall:     ₦500
- *   Per km (taxi):      ₦150 / km
- *   Per km (courier):   ₦120 / km  (lighter load, smaller vehicle)
+ * Rate table (XMR millicents — 1 XMR = 100 000 mc; adjust via remote config):
+ *   Base flag-fall:     ɱ0.0050  (500 mc)
+ *   Per km (taxi):      ɱ0.0015  (150 mc) / km
+ *   Per km (courier):   ɱ0.0012  (120 mc) / km  (lighter load, smaller vehicle)
  *   Peak multiplier:    1.5× (07:00–09:00, 16:00–20:00 WAT)
- *   Minimum fare:       ₦800
+ *   Minimum fare:       ɱ0.0080  (800 mc)
  */
 object FareEstimator {
 
     // ── Rate table ────────────────────────────────────────────────────────────
 
-    private const val BASE_FARE_NGN          = 500L
+    private const val BASE_FARE_XMR          = 500L
     private const val TAXI_RATE_PER_KM       = 150L
     private const val COURIER_RATE_PER_KM    = 120L
     private const val PEAK_MULTIPLIER        = 1.5
-    private const val MINIMUM_FARE_NGN       = 800L
+    private const val MINIMUM_FARE_XMR       = 800L
     private const val EARTH_RADIUS_KM        = 6371.0
 
     // Peak hours in WAT (UTC+1): 07–09 morning, 16–20 evening
@@ -47,7 +47,7 @@ object FareEstimator {
      * @param dropoffGeohash  GeoHash-5 string of dropoff zone (empty = unknown)
      * @param serviceType     TAXI or COURIER
      * @param hourOfDayWAT    Current hour in West Africa Time (0–23); default = now
-     * @return                Estimated fare in Nigerian Naira (₦)
+     * @return                Estimated fare in XMR millicents (ɱ)
      */
     fun estimate(
         pickupGeohash:  String,
@@ -56,16 +56,16 @@ object FareEstimator {
         hourOfDayWAT:   Int = currentHourWAT()
     ): Long {
         // If no dropoff given, return minimum fare
-        if (dropoffGeohash.isEmpty()) return MINIMUM_FARE_NGN
+        if (dropoffGeohash.isEmpty()) return MINIMUM_FARE_XMR
 
         val distanceKm = haversineKm(pickupGeohash, dropoffGeohash)
         val ratePerKm  = if (serviceType == ServiceType.TAXI) TAXI_RATE_PER_KM else COURIER_RATE_PER_KM
         val isPeak     = hourOfDayWAT in PEAK_HOURS
 
-        val raw = BASE_FARE_NGN + (distanceKm * ratePerKm).toLong()
+        val raw = BASE_FARE_XMR + (distanceKm * ratePerKm).toLong()
         val withPeak = if (isPeak) (raw * PEAK_MULTIPLIER).toLong() else raw
 
-        return withPeak.coerceAtLeast(MINIMUM_FARE_NGN)
+        return withPeak.coerceAtLeast(MINIMUM_FARE_XMR)
     }
 
     /**
@@ -86,10 +86,10 @@ object FareEstimator {
     }
 
     /**
-     * Format a Naira amount for display: ₦1,500
+     * Format an XMR millicent amount for display: ɱ1,500
      */
-    fun formatNaira(amountNGN: Long): String =
-        "₦%,d".format(amountNGN)
+    fun formatXmr(amountXmr: Long): String =
+        "ɱ%,d".format(amountXmr)
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

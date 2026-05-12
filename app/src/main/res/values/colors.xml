@@ -6,7 +6,7 @@
 
     <!-- ── Kabu-Kabu brand palette ─────────────────────────────────────────
          Inspired by the icon: bold amber/gold on deep charcoal-black.
-         Conveys reliability, Nigerian energy, and premium trust.          -->
+         Conveys reliability, speed, and premium trust.          -->
 
     <!-- Dark charcoal — primary background (matches icon surround) -->
     <color name="kabu_bg_dark">#FF1A1A1A</color>

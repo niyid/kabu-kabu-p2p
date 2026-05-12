@@ -113,7 +113,7 @@ class RideRequestModelTest {
         pickupGeohash   = "gcpu3",
         dropoffGeohash  = "gcpym",
         serviceType     = ServiceType.TAXI,
-        fareEstimateNGN = 1200L,
+        fareEstimateXMR = 1200L,
         noteForDriver   = "Please ring bell",
         timestamp       = System.currentTimeMillis()
     )
@@ -126,7 +126,7 @@ class RideRequestModelTest {
         etaMinutes    = 5,
         vehicleType   = "Car",
         ratingScore   = 4.8f,
-        counterFareNGN = null,
+        counterFareXMR = null,
         timestamp     = System.currentTimeMillis()
     )
 

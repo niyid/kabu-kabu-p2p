@@ -21,7 +21,7 @@
     <string name="ok">OK</string>
     <string name="register_title">Register</string>
     <string name="register_body">Enter your phone number. It will be hashed (SHA-256) immediately — the plaintext is never stored or sent.</string>
-    <string name="phone_hint">+234 800 000 0000</string>
+    <string name="phone_hint">+1 800 000 0000</string>
 
     <!-- Status labels -->
     <string name="status_registered">Registered ✓</string>
@@ -39,7 +39,7 @@
     <!-- Driver offer card -->
     <string name="eta_minutes">ETA: %1$d min</string>
     <string name="rating_stars">★ %1$.1f</string>
-    <string name="fare_ngn">₦%1$d</string>
+    <string name="fare_xmr">ɱ%1$d</string>
     <string name="driver_anon_id">Driver ID: …%1$s</string>
 
     <!-- Ride request card (driver view) -->

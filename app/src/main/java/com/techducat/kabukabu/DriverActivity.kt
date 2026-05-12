@@ -260,7 +260,7 @@ class DriverActivity :
             etaMinutes     = estimateEtaMinutes(request.pickupGeohash),
             vehicleType    = getVehicleType(),
             ratingScore    = getMyRatingScore(),
-            counterFareNGN = null,
+            counterFareXMR = null,
             timestamp      = System.currentTimeMillis()
         )
 
@@ -351,7 +351,7 @@ class DriverActivity :
             pickupGeohash  = request.pickupGeohash,
             dropoffGeohash = request.dropoffGeohash,
             serviceType    = request.serviceType.name,
-            fareNgn        = request.fareEstimateNGN,
+            fareXmr        = request.fareEstimateXMR,
             status         = RequestStatus.COMPLETED.name,
             note           = request.noteForDriver,
             timestamp      = request.timestamp,

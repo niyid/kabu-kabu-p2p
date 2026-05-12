@@ -4,7 +4,7 @@ import java.io.File
 // ============================================================
 //  kabu-kabu-p2p  —  app/build.gradle.kts
 //
-//  Privacy-first P2P taxi & courier app for Nigeria.
+//  Privacy-first P2P taxi & courier app.
 //
 //  Transport layer: I2P embedded router (same as buzzr-p2p)
 //  Location privacy: GeoHash-5 fuzzy zones (~5 km cell)

@@ -12,24 +12,24 @@ import org.junit.Test
  */
 class FareEstimatorTest {
 
-    // Lagos Island GeoHash-5 cells (approximate)
-    private val GCPU3 = "gcpu3"   // Lagos Island
+    // Sample GeoHash-5 cells (approximate; swap for your locale)
+    private val GCPU3 = "gcpu3"   // Zone A (downtown sample)
     private val GCPTH = "gcpth"   // Victoria Island (~3 km)
-    private val GCPYM = "gcpym"   // Lekki (~15 km)
+    private val GCPYM = "gcpym"   // Zone B sample (~15 km)
 
     // ── Minimum fare ──────────────────────────────────────────────────────────
 
     @Test
     fun `minimum fare returned when dropoff is empty`() {
         val fare = estimate("gcpu3", "", ServiceType.TAXI, offPeakHour())
-        assertEquals("Empty dropoff should return minimum fare ₦800", 800L, fare)
+        assertEquals("Empty dropoff should return minimum fare ɱ800", 800L, fare)
     }
 
     @Test
     fun `fare is never below minimum`() {
         // Same cell pickup and dropoff (zero distance) — still minimum
         val fare = estimate(GCPU3, GCPU3, ServiceType.TAXI, offPeakHour())
-        assertTrue("Fare must never be below ₦800, got ₦$fare", fare >= 800L)
+        assertTrue("Fare must never be below ɱ800, got ɱ$fare", fare >= 800L)
     }
 
     // ── Distance scaling ──────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ class FareEstimatorTest {
     fun `longer trip costs more than shorter trip`() {
         val short = estimate(GCPU3, GCPTH, ServiceType.TAXI, offPeakHour())
         val long  = estimate(GCPU3, GCPYM, ServiceType.TAXI, offPeakHour())
-        assertTrue("Longer trip (Lekki) should cost more than shorter (VI): ₦$short vs ₦$long",
+        assertTrue("Longer trip (Zone B) should cost more than shorter (Zone A): ɱ$short vs ɱ$long",
             long > short)
     }
 
@@ -48,7 +48,7 @@ class FareEstimatorTest {
     fun `taxi fare exceeds courier fare for same route`() {
         val taxiFare    = estimate(GCPU3, GCPYM, ServiceType.TAXI,    offPeakHour())
         val courierFare = estimate(GCPU3, GCPYM, ServiceType.COURIER, offPeakHour())
-        assertTrue("Taxi rate (₦150/km) should exceed courier rate (₦120/km): ₦$taxiFare vs ₦$courierFare",
+        assertTrue("Taxi rate (ɱ150 mc/km) should exceed courier rate (ɱ120 mc/km): ɱ$taxiFare vs ɱ$courierFare",
             taxiFare > courierFare)
     }
 
@@ -58,7 +58,7 @@ class FareEstimatorTest {
     fun `peak hour fare exceeds off-peak fare`() {
         val offPeak = estimate(GCPU3, GCPYM, ServiceType.TAXI, offPeakHour())
         val peak    = estimate(GCPU3, GCPYM, ServiceType.TAXI, peakHour())
-        assertTrue("Peak fare (1.5×) should exceed off-peak fare: ₦$peak vs ₦$offPeak",
+        assertTrue("Peak fare (1.5×) should exceed off-peak fare: ɱ$peak vs ɱ$offPeak",
             peak > offPeak)
     }
 
@@ -84,18 +84,18 @@ class FareEstimatorTest {
         assertTrue("Same-cell distance should be ~0, got $d", d < 1.0)
     }
 
-    // ── formatNaira ───────────────────────────────────────────────────────────
+    // ── formatXmr ───────────────────────────────────────────────────────────
 
     @Test
-    fun `formatNaira includes Naira symbol`() {
-        val s = formatNaira(1500L)
-        assertTrue("formatNaira must start with ₦", s.startsWith("₦"))
+    fun `formatXmr includes XMR symbol`() {
+        val s = formatXmr(1500L)
+        assertTrue("formatXmr must start with ɱ", s.startsWith("ɱ"))
     }
 
     @Test
-    fun `formatNaira formats thousands with comma`() {
-        val s = formatNaira(1500L)
-        assertTrue("1500 should be formatted as ₦1,500, got $s", s.contains(","))
+    fun `formatXmr formats thousands with comma`() {
+        val s = formatXmr(1500L)
+        assertTrue("1500 should be formatted as ɱ1,500, got $s", s.contains(","))
     }
 
     // ── Helpers (inline mirrors of FareEstimator to avoid Android context) ──
@@ -135,5 +135,5 @@ class FareEstimatorTest {
         Pair(g.originatingPoint.latitude, g.originatingPoint.longitude)
     } catch (_: Exception) { null }
 
-    private fun formatNaira(n: Long) = "₦%,d".format(n)
+    private fun formatXmr(n: Long) = "ɱ%,d".format(n)
 }

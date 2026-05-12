@@ -8,7 +8,7 @@ package com.techducat.kabukabu.model
  *    Exact coordinates are NEVER included.
  *  - [riderId] is a SHA-256 hash of the rider's phone number.
  *  - No name, address, or contact info is transmitted in this object.
- *  - [fareEstimateNGN] is computed on-device from the geohash distance
+ *  - [fareEstimateXMR] is computed on-device from the geohash distance
  *    and a locally-stored rate table; no pricing server is contacted.
  *
  * Flow:
@@ -22,7 +22,7 @@ data class RideRequest(
     val pickupGeohash:    String,          // GeoHash precision 5
     val dropoffGeohash:   String,          // GeoHash precision 5
     val serviceType:      ServiceType,     // TAXI | COURIER
-    val fareEstimateNGN:  Long,            // Naira, computed locally
+    val fareEstimateXMR:  Long,            // XMR millicents, computed locally
     val noteForDriver:    String,          // Optional free text (package desc, etc.)
     val timestamp:        Long,            // Unix millis (sender clock)
     val ttlMs:            Long = 10 * 60 * 1000L,  // Expire after 10 min
@@ -47,7 +47,7 @@ data class DriverOffer(
     val etaMinutes:       Int,             // Estimated minutes to pickup geohash
     val vehicleType:      String,          // "Keke", "Car", "Bike", "Truck" etc.
     val ratingScore:      Float,           // 0–5, computed from local peer reviews
-    val counterFareNGN:   Long?,           // null = accept rider's estimate
+    val counterFareXMR:   Long?,           // null = accept rider's estimate (XMR mc)
     val timestamp:        Long
 )
 

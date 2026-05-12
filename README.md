@@ -1,6 +1,6 @@
 # kabu-kabu-p2p
 
-**Kabu-Kabu** is a privacy-first, peer-to-peer taxi and courier app for Nigeria — and anywhere people want rides without a surveillance trail.
+**Kabu-Kabu** is a privacy-first, peer-to-peer taxi and courier app — private rides and deliveries, anywhere in the world.
 
 ## Privacy model
 
@@ -106,5 +106,5 @@ Kabu-Kabu is built on the same I2P P2P substrate as
 - [ ] OSMDroid offline map view with GeoHash cell overlay
 - [ ] Post-trip peer review gossip (P2P star ratings)
 - [ ] Offline fare estimator using OSRM local routing engine
-- [ ] Crypto payment integration (USDT / cNGN via on-device wallet)
+- [ ] Crypto payment integration (XMR via on-device wallet)
 - [ ] F-Droid reproducible build

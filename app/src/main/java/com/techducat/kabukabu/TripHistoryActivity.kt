@@ -134,7 +134,7 @@ class TripHistoryActivity : AppCompatActivity() {
             holder.tvDropoff.text = if (trip.dropoffGeohash.isNotEmpty())
                                         GeoHashPrivacyUtil.displayLabel(trip.dropoffGeohash)
                                     else ctx.getString(R.string.unknown_zone)
-            holder.tvFare.text    = FareEstimator.formatNaira(trip.fareNgn)
+            holder.tvFare.text    = FareEstimator.formatXmr(trip.fareXmr)
             holder.tvStatus.text  = trip.status
             holder.tvRole.text    = trip.localRole.replaceFirstChar { it.uppercaseChar() }
             // Show only first 8 hex chars of the SHA-256 peer ID — anonymous but identifiable

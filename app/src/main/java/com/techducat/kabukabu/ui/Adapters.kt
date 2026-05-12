@@ -44,8 +44,8 @@ class OfferAdapter(
         holder.tvVehicle.text  = offer.vehicleType
         holder.tvEta.text      = ctx.getString(R.string.eta_minutes, offer.etaMinutes)
         holder.tvRating.text   = ctx.getString(R.string.rating_stars, offer.ratingScore)
-        holder.tvFare.text     = ctx.getString(R.string.fare_ngn,
-            offer.counterFareNGN ?: 0L)
+        holder.tvFare.text     = ctx.getString(R.string.fare_xmr,
+            offer.counterFareXMR ?: 0L)
         // Show only first 4 chars of driver's I2P destination as a short anonymous ID
         val shortId = offer.driverI2pDest.take(8).ifEmpty { offer.driverId.take(8) }
         holder.tvZone.text     = ctx.getString(R.string.driver_anon_id, shortId)
@@ -87,7 +87,7 @@ class RequestAdapter(
 
         holder.tvZone.text  = ctx.getString(R.string.pickup_zone, req.pickupGeohash)
         holder.tvType.text  = req.serviceType.name
-        holder.tvFare.text  = ctx.getString(R.string.fare_ngn, req.fareEstimateNGN)
+        holder.tvFare.text  = ctx.getString(R.string.fare_xmr, req.fareEstimateXMR)
         holder.tvNote.text  = req.noteForDriver.ifEmpty { ctx.getString(R.string.no_note) }
         holder.btnOffer.setOnClickListener { onOffer(req) }
     }

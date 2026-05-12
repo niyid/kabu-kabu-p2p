@@ -54,7 +54,7 @@
                 android:textColor="@color/kabu_gold"
                 android:textStyle="bold"
                 android:textSize="15sp"
-                android:text="₦500"/>
+                android:text="ɱ500"/>
         </LinearLayout>
 
         <TextView

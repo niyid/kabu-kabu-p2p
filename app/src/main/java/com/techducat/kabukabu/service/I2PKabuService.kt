@@ -365,7 +365,7 @@ class I2PKabuService : LifecycleService() {
                 pickupGeohash   = json.optString("pickup_geohash"),
                 dropoffGeohash  = json.optString("dropoff_geohash"),
                 serviceType     = json.optString("service_type", "TAXI"),
-                fareNgn         = json.optLong("fare_estimate_ngn", 0),
+                fareXmr         = json.optLong("fare_estimate_xmr", 0),
                 status          = "OPEN",
                 note            = json.optString("note"),
                 timestamp       = json.optLong("timestamp", now),
