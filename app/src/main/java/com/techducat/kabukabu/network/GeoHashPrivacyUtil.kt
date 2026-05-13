@@ -67,8 +67,8 @@ object GeoHashPrivacyUtil {
     fun cellCentreForDisplay(geohash: String): Pair<Double, Double>? {
         return try {
             val bb  = GeoHash.fromGeohashString(geohash).boundingBox
-            val lat = (bb.minLat + bb.maxLat) / 2.0
-            val lon = (bb.minLon + bb.maxLon) / 2.0
+            val lat = (bb.southLatitude + bb.northLatitude) / 2.0
+            val lon = (bb.westLongitude + bb.eastLongitude) / 2.0
             Pair(lat, lon)
         } catch (_: Exception) { null }
     }
