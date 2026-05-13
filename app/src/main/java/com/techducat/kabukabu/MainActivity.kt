@@ -167,11 +167,14 @@ class MainActivity :
             tvStatus.text = getString(R.string.status_registered)
             requestLocationPermissions()
             startI2PService()
+            initWallet()   // deviceId is set — safe to proceed
         } else {
             showPhoneRegistrationDialog()
+            // initWallet() will be called by registerDevice() once the user submits
         }
+    }
 
-        // Initialise XMR wallet
+    private fun initWallet() {
         rideWalletManager = RideWalletManager(this)
         WalletSuite.getInstance(this).apply {
             setStatusListener(object : WalletSuite.WalletStatusListener {
@@ -205,6 +208,7 @@ class MainActivity :
         tvStatus.text = getString(R.string.status_registered)
         startI2PService()
         requestLocationPermissions()
+        initWallet()   // deviceId is now set — safe to call
     }
 
     private fun startI2PService() {

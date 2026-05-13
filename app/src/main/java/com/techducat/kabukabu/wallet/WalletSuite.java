@@ -223,7 +223,7 @@ public class WalletSuite {
 
         // Initialise native Monero library (same lib as Verzus/Monerujo)
         try {
-            WalletManager.initLogger("kabu", "kabu-wallet");
+            //WalletManager.initLogger("kabu", "kabu-wallet");
             walletManager = WalletManager.getInstance();
             loadConfiguration();
             Log.i(TAG, "WalletSuite created — daemon: " + daemonAddress + ":" + daemonPort);
