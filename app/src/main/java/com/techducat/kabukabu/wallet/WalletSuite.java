@@ -321,8 +321,7 @@ public class WalletSuite {
                 }
 
                 if (wallet == null) {
-                    String err = walletManager.getErrorString();
-                    notifyInitResult(false, "Failed to open wallet: " + err);
+                    notifyInitResult(false, "JNI returned null wallet");
                     return;
                 }
 

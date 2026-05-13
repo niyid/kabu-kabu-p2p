@@ -185,7 +185,9 @@ public class WalletManager {
     }
 
     public String getErrorString() {
-        return getErrorStringJ();
+        // getErrorStringJ() is not exported by libmonerujo.so in this build.
+        // Return the locally-tracked errorString field instead (same pattern as Verzus).
+        return errorString;
     }
     
     public boolean close(Wallet wallet) {
