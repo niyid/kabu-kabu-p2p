@@ -54,6 +54,15 @@ class I2PKabuService : LifecycleService() {
         private const val MAX_ACTIVE_REQUESTS = 200
 
         // ── XMR wallet message types ──────────────────────────────────────────
+        // ── I2P network state message type ────────────────────────────────────
+        // Sent to local UI clients (I2PKabuClient) whenever the router state changes.
+        const val MSG_TYPE_I2P_STATE         = "i2p_state"
+        const val I2P_STATE_BOOTSTRAPPING    = "bootstrapping"    // router starting, reseeding
+        const val I2P_STATE_BUILDING_TUNNELS = "building_tunnels" // SAM up, tunnels pending
+        const val I2P_STATE_READY            = "ready"            // tunnels confirmed up
+        const val I2P_STATE_ERROR            = "error"            // startup failed
+
+        // ── XMR wallet message types ──────────────────────────────────────────
         const val MSG_TYPE_WALLET_MULTISIG_INFO = "wallet_multisig_info"
         const val MSG_TYPE_WALLET_ESCROW_READY  = "wallet_escrow_ready"
         const val MSG_TYPE_WALLET_PARTIAL_TX    = "wallet_partial_tx"
@@ -105,7 +114,13 @@ class I2PKabuService : LifecycleService() {
             .getString(KabuKabuApp.KEY_DEVICE_ID, "") ?: ""
 
         rideWalletManager = RideWalletManager(this)
-        WalletSuite.getInstance(this).initializeWallet(deviceId)
+        // FIX 2: do NOT call initializeWallet() here.
+        // Wallet lifecycle belongs to the UI layer (MainActivity / WalletActivity).
+        // Calling it here races with MainActivity.initWallet() — both land on the same
+        // single-threaded executor within milliseconds, both fail (when walletPassword was
+        // null), and the second attempt never re-runs because isInitialized stays false.
+        // The service uses WalletSuite only after the wallet is already open (via the
+        // coSignAndBroadcast / prepareEscrow calls that arrive through I2P messages).
 
         Log.i(TAG, "I2PKabuService starting (P2P mode)…")
         acquireWakeLock()
@@ -162,15 +177,40 @@ class I2PKabuService : LifecycleService() {
             try {
                 val router = EmbeddedI2PRouter.getInstance(applicationContext, deviceId)
                 embeddedRouter = router
+
+                // Notify UI that I2P is bootstrapping
+                broadcastI2PState(I2P_STATE_BOOTSTRAPPING)
+
                 router.startRouter()
                 Log.i(TAG, "I2P router started; waiting for tunnels…")
+
+                // SAM is up — router is alive but tunnels may not be ready yet
+                broadcastI2PState(I2P_STATE_BUILDING_TUNNELS)
+
                 router.awaitTunnelsReady()
                 Log.i(TAG, "I2P tunnels ready — Kabu-Kabu P2P transport active")
+
+                broadcastI2PState(I2P_STATE_READY)
                 wireI2PReceiveListener()
             } catch (e: Exception) {
                 Log.e(TAG, "I2P router startup failed — loopback-only mode", e)
+                broadcastI2PState(I2P_STATE_ERROR)
             }
         }
+    }
+
+    /**
+     * Broadcast an I2P network state change to all connected local UI clients.
+     * The UI listens for messages of type [MSG_TYPE_I2P_STATE] and updates the
+     * status indicator accordingly.
+     */
+    private fun broadcastI2PState(state: String) {
+        val msg = JSONObject().apply {
+            put("type",  MSG_TYPE_I2P_STATE)
+            put("state", state)
+        }
+        broadcastToLocalClients(msg.toString())
+        Log.i(TAG, "I2P state → $state")
     }
 
     private fun wireI2PReceiveListener() {

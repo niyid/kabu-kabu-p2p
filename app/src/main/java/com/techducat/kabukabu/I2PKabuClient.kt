@@ -128,11 +128,13 @@ class I2PKabuClient(private val context: Context) {
     private val driverOfferListeners  = ConcurrentHashMap<String, DriverOfferHandler>()
     private val tripEventListeners    = ConcurrentHashMap<String, TripEventHandler>()
     private val peerStatusListeners   = ConcurrentHashMap<String, PeerStatusHandler>()
+    private val i2pStateListeners     = ConcurrentHashMap<String, I2PStateHandler>()
 
     fun addRideRequestHandler (key: String, h: RideRequestHandler)  { rideRequestListeners[key] = h }
     fun addDriverOfferHandler (key: String, h: DriverOfferHandler)  { driverOfferListeners[key] = h }
     fun addTripEventHandler   (key: String, h: TripEventHandler)    { tripEventListeners[key] = h }
     fun addPeerStatusHandler  (key: String, h: PeerStatusHandler)   { peerStatusListeners[key] = h }
+    fun addI2PStateHandler    (key: String, h: I2PStateHandler)     { i2pStateListeners[key] = h }
 
     // ── Connection lifecycle ──────────────────────────────────────────────────
 
@@ -333,6 +335,10 @@ class I2PKabuClient(private val context: Context) {
                 peerStatusListeners.values.forEach {
                     if (online) it.onPeerOnline(peerId) else it.onPeerOffline(peerId)
                 }
+            }
+            "i2p_state" -> {
+                val state = json.optString("state")
+                i2pStateListeners.values.forEach { it.onI2PStateChanged(state) }
             }
             "heartbeat_ack" -> lastHeartbeatOk.set(System.currentTimeMillis())
             "error" -> Log.e(TAG, "Service error: ${json.optString("message")}")

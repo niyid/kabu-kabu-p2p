@@ -35,6 +35,37 @@
             android:textSize="12sp"
             android:paddingBottom="16dp"/>
 
+        <!-- I2P network status banner (visible while bootstrapping / building tunnels) -->
+        <LinearLayout
+            android:id="@+id/layoutI2PStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/kabu_input_bg"
+            android:padding="10dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="visible">
+
+            <ProgressBar
+                android:id="@+id/progressI2P"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:indeterminateTint="@color/kabu_amber"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:id="@+id/tvI2PStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/i2p_status_bootstrapping"
+                android:textColor="@color/kabu_amber"
+                android:textSize="12sp"/>
+
+        </LinearLayout>
+
         <!-- Status row -->
         <LinearLayout
             android:layout_width="match_parent"

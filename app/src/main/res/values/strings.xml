@@ -23,6 +23,12 @@
     <string name="register_body">Enter your phone number. It will be hashed (SHA-256) immediately — the plaintext is never stored or sent.</string>
     <string name="phone_hint">+1 800 000 0000</string>
 
+    <!-- I2P network status banner -->
+    <string name="i2p_status_bootstrapping">Connecting to I2P network… (first boot may take 2–3 min)</string>
+    <string name="i2p_status_building_tunnels">I2P reachable — building anonymous tunnels…</string>
+    <string name="i2p_status_ready">I2P network ready ✓</string>
+    <string name="i2p_status_error">I2P startup failed — retrying in background</string>
+
     <!-- Status labels -->
     <string name="status_registered">Registered ✓</string>
     <string name="status_connected">Connected (I2P) ✓</string>

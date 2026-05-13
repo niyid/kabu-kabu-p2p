@@ -266,6 +266,14 @@ public class WalletSuite {
         try (InputStream is = context.getAssets().open(PROPERTIES_FILE)) {
             Properties props = new Properties();
             props.load(is);
+
+            // FIX 1: applyConfiguration() sets walletPassword (and walletName/walletLanguage)
+            // on the WalletManager.  Without this call, WalletManager.walletPassword stays null
+            // (Java default for an uninitialised String field), and createWalletJ(path, null, …)
+            // causes the native Monero library to return handle 0 → "JNI returned null wallet".
+            walletManager.applyConfiguration(props);
+
+            // Also mirror the fields WalletSuite reads directly for daemon / network setup.
             daemonAddress = props.getProperty("daemon.address", daemonAddress);
             daemonPort    = Integer.parseInt(props.getProperty("daemon.port",
                                              String.valueOf(daemonPort)));
@@ -321,7 +329,13 @@ public class WalletSuite {
                 }
 
                 if (wallet == null) {
-                    notifyInitResult(false, "JNI returned null wallet");
+                    // FIX 3: surface the actual Monero error instead of swallowing it.
+                    String nativeError = walletManager.getErrorString();
+                    String msg = "JNI returned null wallet"
+                               + (nativeError != null && !nativeError.isEmpty()
+                                  ? ": " + nativeError : "");
+                    Log.e(TAG, "createWallet/openWallet failed — " + msg);
+                    notifyInitResult(false, msg);
                     return;
                 }
 

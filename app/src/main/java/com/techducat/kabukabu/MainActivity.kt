@@ -65,7 +65,8 @@ class MainActivity :
     I2PKabuClient.RideRequestHandler,
     I2PKabuClient.DriverOfferHandler,
     I2PKabuClient.TripEventHandler,
-    I2PKabuClient.PeerStatusHandler {
+    I2PKabuClient.PeerStatusHandler,
+    I2PKabuClient.I2PStateHandler {
 
     companion object {
         private const val TAG = "KabuMainActivity"
@@ -107,6 +108,9 @@ class MainActivity :
     // ── UI ────────────────────────────────────────────────────────────────────
 
     private lateinit var tvStatus:         TextView
+    private lateinit var layoutI2PStatus:  android.view.View
+    private lateinit var progressI2P:      android.widget.ProgressBar
+    private lateinit var tvI2PStatus:      TextView
     private lateinit var tvGeohash:        TextView
     private lateinit var tvRole:           TextView
     private lateinit var btnRequestRide:   Button
@@ -135,6 +139,7 @@ class MainActivity :
         i2pClient.addDriverOfferHandler ("main", this)
         i2pClient.addTripEventHandler   ("main", this)
         i2pClient.addPeerStatusHandler  ("main", this)
+        i2pClient.addI2PStateHandler    ("main", this)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         setupLocationCallback()
@@ -518,6 +523,45 @@ class MainActivity :
 
     override fun onPeerOnline(peerId: String)  { Log.d(TAG, "Peer online: $peerId") }
     override fun onPeerOffline(peerId: String) { Log.d(TAG, "Peer offline: $peerId") }
+
+    // ── I2PStateHandler ───────────────────────────────────────────────────────
+
+    override fun onI2PStateChanged(state: String) {
+        runOnUiThread { updateI2PStatusBanner(state) }
+    }
+
+    private fun updateI2PStatusBanner(state: String) {
+        when (state) {
+            I2PKabuService.I2P_STATE_BOOTSTRAPPING -> {
+                layoutI2PStatus.visibility = android.view.View.VISIBLE
+                progressI2P.visibility     = android.view.View.VISIBLE
+                tvI2PStatus.text           = getString(R.string.i2p_status_bootstrapping)
+            }
+            I2PKabuService.I2P_STATE_BUILDING_TUNNELS -> {
+                layoutI2PStatus.visibility = android.view.View.VISIBLE
+                progressI2P.visibility     = android.view.View.VISIBLE
+                tvI2PStatus.text           = getString(R.string.i2p_status_building_tunnels)
+            }
+            I2PKabuService.I2P_STATE_READY -> {
+                // Show "ready" briefly then hide the banner
+                progressI2P.visibility = android.view.View.GONE
+                tvI2PStatus.text       = getString(R.string.i2p_status_ready)
+                layoutI2PStatus.postDelayed({
+                    layoutI2PStatus.animate().alpha(0f).setDuration(600).withEndAction {
+                        layoutI2PStatus.visibility = android.view.View.GONE
+                        layoutI2PStatus.alpha      = 1f
+                    }.start()
+                }, 2000)
+            }
+            I2PKabuService.I2P_STATE_ERROR -> {
+                progressI2P.visibility = android.view.View.GONE
+                tvI2PStatus.text       = getString(R.string.i2p_status_error)
+                tvI2PStatus.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(this, android.R.color.holo_red_light)
+                )
+            }
+        }
+    }
     override fun onConnectionStateChanged(connected: Boolean) {
         runOnUiThread {
             tvStatus.text = if (connected)
@@ -566,6 +610,9 @@ class MainActivity :
 
     private fun bindViews() {
         tvStatus       = findViewById(R.id.tvStatus)
+        layoutI2PStatus = findViewById(R.id.layoutI2PStatus)
+        progressI2P     = findViewById(R.id.progressI2P)
+        tvI2PStatus     = findViewById(R.id.tvI2PStatus)
         tvGeohash      = findViewById(R.id.tvGeohash)
         tvRole         = findViewById(R.id.tvRole)
         btnRequestRide = findViewById(R.id.btnRequestRide)
