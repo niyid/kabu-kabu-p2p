@@ -124,6 +124,12 @@ class I2PKabuClient(private val context: Context) {
         fun onConnectionStateChanged(connected: Boolean)
     }
 
+    interface I2PStateHandler {
+        /** Called on an IO thread when the I2P router reports a state change.
+         *  Implementations must marshal to the main thread themselves (e.g. runOnUiThread). */
+        fun onI2PStateChanged(state: String)
+    }
+
     private val rideRequestListeners  = ConcurrentHashMap<String, RideRequestHandler>()
     private val driverOfferListeners  = ConcurrentHashMap<String, DriverOfferHandler>()
     private val tripEventListeners    = ConcurrentHashMap<String, TripEventHandler>()
