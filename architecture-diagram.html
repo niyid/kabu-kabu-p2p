@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architectural Comparison: Serverless P2P vs Client-Server</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --panel: #0f1318;
+    --border: #1e2530;
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --node-bg: #141920;
+    --server-color: #6366f1;
+    --peer-color: #10b981;
+    --client-color: #3b82f6;
+    --data-color: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent-blue);
+    border: 1px solid rgba(59,130,246,0.3);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 12px;
+  }
+
+  h1 span.highlight {
+    color: var(--accent-blue);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  /* Comparison grid */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+
+  @media (max-width: 700px) {
+    .comparison { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .panel.client-server::before { background: var(--server-color); }
+  .panel.serverless::before    { background: var(--peer-color); }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .panel.client-server .panel-title { color: var(--server-color); }
+  .panel.serverless .panel-title    { color: var(--peer-color); }
+
+  .panel-heading {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    letter-spacing: -0.01em;
+  }
+
+  /* SVG diagrams */
+  .diagram-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Node styles embedded in SVG via class/inline */
+
+  /* Properties table */
+  .props {
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .prop-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .prop-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 110px;
+    padding-top: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  .prop-val {
+    color: var(--text);
+    line-height: 1.5;
+    font-weight: 300;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  .badge-red   { background: rgba(239,68,68,0.15);  color: var(--accent-red); }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--peer-color); }
+  .badge-blue  { background: rgba(59,130,246,0.15); color: var(--client-color); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--data-color); }
+
+  /* Data flow section */
+  .flow-section {
+    margin-top: 40px;
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .flow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 700px) {
+    .flow-grid { grid-template-columns: 1fr; }
+  }
+
+  .flow-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+  }
+
+  .flow-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-server  { background: var(--server-color); }
+  .dot-peer    { background: var(--peer-color); }
+
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.5;
+  }
+
+  .step-num {
+    color: var(--muted);
+    min-width: 18px;
+    font-size: 11px;
+    padding-top: 1px;
+  }
+
+  .arrow-right {
+    display: inline-block;
+    color: var(--accent-blue);
+    margin: 0 3px;
+  }
+
+  /* Tradeoffs */
+  .tradeoffs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 700px) {
+    .tradeoffs { grid-template-columns: 1fr 1fr; }
+  }
+
+  .tradeoff-card {
+    background: var(--node-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .tradeoff-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .tradeoff-label {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .tradeoff-cs {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 2px;
+  }
+
+  .tradeoff-sl {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tradeoff-sl.positive { color: var(--peer-color); }
+  .tradeoff-sl.negative { color: var(--accent-red); }
+  .tradeoff-sl.neutral  { color: var(--data-color); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="tag">Architecture Pattern</div>
+    <h1>Client-Server vs <span class="highlight">Serverless P2P</span></h1>
+    <p class="subtitle">A high-level comparison of two fundamental distributed system designs</p>
+  </header>
+
+  <!-- Main diagrams -->
+  <div class="comparison">
+
+    <!-- Client-Server -->
+    <div class="panel client-server">
+      <div class="panel-title">Traditional</div>
+      <div class="panel-heading">Client — Server</div>
+
+      <svg class="diagram-svg" viewBox="0 0 380 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-cs" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#64748b"/>
+          </marker>
+          <filter id="glow-srv">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Central server -->
+        <rect x="140" y="20" width="100" height="52" rx="6"
+              fill="#1a1f2e" stroke="#6366f1" stroke-width="1.5"/>
+        <rect x="140" y="20" width="100" height="4" rx="2" fill="#6366f1"/>
+        <text x="190" y="48" text-anchor="middle" font-family="IBM Plex Mono" font-size="10"
+              fill="#6366f1" font-weight="600">SERVER</text>
+        <text x="190" y="62" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#475569">Central Authority</text>
+
+        <!-- Clients row 1 -->
+        <!-- Client A -->
+        <rect x="20" y="120" width="78" height="44" rx="5"
+              fill="#141920" stroke="#3b82f6" stroke-width="1"/>
+        <text x="59" y="140" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#3b82f6">CLIENT A</text>
+        <text x="59" y="154" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">User Device</text>
+
+        <!-- Client B -->
+        <rect x="115" y="120" width="78" height="44" rx="5"
+              fill="#141920" stroke="#3b82f6" stroke-width="1"/>
+        <text x="154" y="140" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#3b82f6">CLIENT B</text>
+        <text x="154" y="154" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">User Device</text>
+
+        <!-- Client C -->
+        <rect x="210" y="120" width="78" height="44" rx="5"
+              fill="#141920" stroke="#3b82f6" stroke-width="1"/>
+        <text x="249" y="140" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#3b82f6">CLIENT C</text>
+        <text x="249" y="154" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">User Device</text>
+
+        <!-- Client D -->
+        <rect x="305" y="120" width="60" height="44" rx="5"
+              fill="#141920" stroke="#3b82f6" stroke-width="1"/>
+        <text x="335" y="140" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#3b82f6">CLIENT D</text>
+        <text x="335" y="154" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Device</text>
+
+        <!-- Lines: clients to server -->
+        <line x1="59" y1="120" x2="160" y2="72" stroke="#64748b" stroke-width="1"
+              stroke-dasharray="4,3" marker-end="url(#arr-cs)"/>
+        <line x1="154" y1="120" x2="182" y2="72" stroke="#64748b" stroke-width="1"
+              stroke-dasharray="4,3" marker-end="url(#arr-cs)"/>
+        <line x1="249" y1="120" x2="208" y2="72" stroke="#64748b" stroke-width="1"
+              stroke-dasharray="4,3" marker-end="url(#arr-cs)"/>
+        <line x1="335" y1="120" x2="232" y2="72" stroke="#64748b" stroke-width="1"
+              stroke-dasharray="4,3" marker-end="url(#arr-cs)"/>
+
+        <!-- Downward arrows (responses) -->
+        <line x1="155" y1="72" x2="65" y2="120" stroke="#6366f1" stroke-width="1"
+              opacity="0.5" marker-end="url(#arr-cs)"/>
+        <line x1="178" y1="72" x2="158" y2="120" stroke="#6366f1" stroke-width="1"
+              opacity="0.5" marker-end="url(#arr-cs)"/>
+        <line x1="204" y1="72" x2="245" y2="120" stroke="#6366f1" stroke-width="1"
+              opacity="0.5" marker-end="url(#arr-cs)"/>
+        <line x1="228" y1="72" x2="330" y2="120" stroke="#6366f1" stroke-width="1"
+              opacity="0.5" marker-end="url(#arr-cs)"/>
+
+        <!-- Single point of failure label -->
+        <rect x="130" y="82" width="120" height="18" rx="3" fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+        <text x="190" y="95" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#ef4444">⚠ Single Point of Failure</text>
+
+        <!-- No direct client-to-client -->
+        <line x1="98" y1="142" x2="115" y2="142" stroke="#ef4444" stroke-width="1.5"
+              stroke-dasharray="3,2" opacity="0.4"/>
+        <text x="106" y="175" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">no direct</text>
+        <text x="106" y="186" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">peer comm.</text>
+
+        <!-- Data store -->
+        <ellipse cx="190" cy="220" rx="44" ry="14" fill="#141920" stroke="#6366f1" stroke-width="1" stroke-dasharray="3,2"/>
+        <text x="190" y="224" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#64748b">Centralised DB</text>
+        <line x1="190" y1="72" x2="190" y2="206" stroke="#6366f1" stroke-width="1"
+              stroke-dasharray="3,2" opacity="0.4"/>
+      </svg>
+
+      <div class="props">
+        <div class="prop-row">
+          <span class="prop-key">topology</span>
+          <span class="prop-val">Hub-and-spoke — all traffic routes through one authority</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">data</span>
+          <span class="prop-val">Stored centrally; server owns and controls it</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">trust</span>
+          <span class="prop-val"><span class="badge badge-red">required</span> Users must trust the server operator</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">resilience</span>
+          <span class="prop-val"><span class="badge badge-red">low</span> Server down = service down</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">scalability</span>
+          <span class="prop-val"><span class="badge badge-blue">vertical</span> Scale by upgrading the server</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Serverless P2P -->
+    <div class="panel serverless">
+      <div class="panel-title">Serverless</div>
+      <div class="panel-heading">Peer-to-Peer</div>
+
+      <svg class="diagram-svg" viewBox="0 0 380 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr-p2p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+          </marker>
+        </defs>
+
+        <!-- Peers arranged in mesh -->
+        <!-- Peer 1 - top center -->
+        <rect x="151" y="12" width="78" height="44" rx="5"
+              fill="#141920" stroke="#10b981" stroke-width="1.5"/>
+        <text x="190" y="32" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#10b981" font-weight="600">PEER 1</text>
+        <text x="190" y="46" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Node + Data</text>
+
+        <!-- Peer 2 - left -->
+        <rect x="20" y="108" width="78" height="44" rx="5"
+              fill="#141920" stroke="#10b981" stroke-width="1.5"/>
+        <text x="59" y="128" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#10b981" font-weight="600">PEER 2</text>
+        <text x="59" y="142" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Node + Data</text>
+
+        <!-- Peer 3 - right -->
+        <rect x="282" y="108" width="78" height="44" rx="5"
+              fill="#141920" stroke="#10b981" stroke-width="1.5"/>
+        <text x="321" y="128" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#10b981" font-weight="600">PEER 3</text>
+        <text x="321" y="142" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Node + Data</text>
+
+        <!-- Peer 4 - bottom left -->
+        <rect x="70" y="202" width="78" height="44" rx="5"
+              fill="#141920" stroke="#10b981" stroke-width="1.5"/>
+        <text x="109" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#10b981" font-weight="600">PEER 4</text>
+        <text x="109" y="236" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Node + Data</text>
+
+        <!-- Peer 5 - bottom right -->
+        <rect x="232" y="202" width="78" height="44" rx="5"
+              fill="#141920" stroke="#10b981" stroke-width="1.5"/>
+        <text x="271" y="222" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#10b981" font-weight="600">PEER 5</text>
+        <text x="271" y="236" text-anchor="middle" font-family="IBM Plex Mono" font-size="8"
+              fill="#475569">Node + Data</text>
+
+        <!-- Mesh connections -->
+        <!-- 1-2 -->
+        <line x1="151" y1="34" x2="98" y2="120" stroke="#10b981" stroke-width="1.2" opacity="0.5"/>
+        <!-- 1-3 -->
+        <line x1="229" y1="34" x2="282" y2="120" stroke="#10b981" stroke-width="1.2" opacity="0.5"/>
+        <!-- 2-4 -->
+        <line x1="72" y1="152" x2="96" y2="202" stroke="#10b981" stroke-width="1.2" opacity="0.5"/>
+        <!-- 3-5 -->
+        <line x1="308" y1="152" x2="284" y2="202" stroke="#10b981" stroke-width="1.2" opacity="0.5"/>
+        <!-- 2-5 -->
+        <line x1="98" y1="130" x2="232" y2="218" stroke="#10b981" stroke-width="1" opacity="0.3" stroke-dasharray="3,3"/>
+        <!-- 3-4 -->
+        <line x1="282" y1="130" x2="148" y2="218" stroke="#10b981" stroke-width="1" opacity="0.3" stroke-dasharray="3,3"/>
+        <!-- 4-5 -->
+        <line x1="148" y1="224" x2="232" y2="224" stroke="#10b981" stroke-width="1.2" opacity="0.5"/>
+        <!-- 1-4 diagonal -->
+        <line x1="165" y1="56" x2="116" y2="202" stroke="#10b981" stroke-width="1" opacity="0.25" stroke-dasharray="3,3"/>
+        <!-- 1-5 diagonal -->
+        <line x1="215" y1="56" x2="254" y2="202" stroke="#10b981" stroke-width="1" opacity="0.25" stroke-dasharray="3,3"/>
+
+        <!-- No central authority label -->
+        <text x="190" y="125" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#475569">no centre</text>
+        <text x="190" y="138" text-anchor="middle" font-family="IBM Plex Mono" font-size="9"
+              fill="#475569">no authority</text>
+
+        <!-- Distributed badge in centre -->
+        <circle cx="190" cy="128" r="28" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+      </svg>
+
+      <div class="props">
+        <div class="prop-row">
+          <span class="prop-key">topology</span>
+          <span class="prop-val">Mesh — nodes connect directly to each other</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">data</span>
+          <span class="prop-val">Distributed across peers; no central store</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">trust</span>
+          <span class="prop-val"><span class="badge badge-green">none needed</span> Cryptographic identity, no operator</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">resilience</span>
+          <span class="prop-val"><span class="badge badge-green">high</span> No single node can bring it down</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">scalability</span>
+          <span class="prop-val"><span class="badge badge-green">horizontal</span> Capacity grows as peers join</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /comparison -->
+
+  <!-- Data flow comparison -->
+  <div class="flow-section">
+    <div class="section-label">Data Flow</div>
+    <div class="flow-grid">
+      <div class="flow-card">
+        <div class="flow-title">
+          <span class="dot dot-server"></span>
+          Client-Server: A sends message to B
+        </div>
+        <div class="flow-steps">
+          <div class="step"><span class="step-num">01</span>Client A composes message</div>
+          <div class="step"><span class="step-num">02</span>A <span class="arrow-right">→</span> encrypted request <span class="arrow-right">→</span> Server</div>
+          <div class="step"><span class="step-num">03</span>Server decrypts, stores, re-encrypts</div>
+          <div class="step"><span class="step-num">04</span>Server <span class="arrow-right">→</span> push/poll <span class="arrow-right">→</span> Client B</div>
+          <div class="step"><span class="step-num">05</span>Server holds metadata &amp; history</div>
+        </div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-title">
+          <span class="dot dot-peer"></span>
+          Serverless P2P: A sends message to B
+        </div>
+        <div class="flow-steps">
+          <div class="step"><span class="step-num">01</span>Peer A composes message</div>
+          <div class="step"><span class="step-num">02</span>A <span class="arrow-right">→</span> end-to-end encrypted <span class="arrow-right">→</span> Peer B</div>
+          <div class="step"><span class="step-num">03</span>No intermediary touches the payload</div>
+          <div class="step"><span class="step-num">04</span>Routed over overlay network (e.g. I2P)</div>
+          <div class="step"><span class="step-num">05</span>Only A &amp; B hold the message</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tradeoffs -->
+  <div class="flow-section" style="margin-top:36px">
+    <div class="section-label">Tradeoffs</div>
+    <div class="tradeoffs">
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">🔒</div>
+        <div class="tradeoff-label">Privacy</div>
+        <div class="tradeoff-cs">Server sees metadata</div>
+        <div class="tradeoff-sl positive">No operator to surveil</div>
+      </div>
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">⚡</div>
+        <div class="tradeoff-label">Latency</div>
+        <div class="tradeoff-cs">Low, optimised routes</div>
+        <div class="tradeoff-sl negative">Higher — overlay hops</div>
+      </div>
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">🛡️</div>
+        <div class="tradeoff-label">Censorship</div>
+        <div class="tradeoff-cs">Easily blocked/shut down</div>
+        <div class="tradeoff-sl positive">Resistant by design</div>
+      </div>
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">💸</div>
+        <div class="tradeoff-label">Cost</div>
+        <div class="tradeoff-cs">Ongoing server/infra cost</div>
+        <div class="tradeoff-sl positive">Zero infra cost to operator</div>
+      </div>
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">🔧</div>
+        <div class="tradeoff-label">Complexity</div>
+        <div class="tradeoff-cs">Simpler client logic</div>
+        <div class="tradeoff-sl negative">NAT traversal, routing, churn</div>
+      </div>
+
+      <div class="tradeoff-card">
+        <div class="tradeoff-icon">📴</div>
+        <div class="tradeoff-label">Offline peers</div>
+        <div class="tradeoff-cs">Server buffers for you</div>
+        <div class="tradeoff-sl neutral">Requires both peers online</div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /page -->
+</body>
+</html>
