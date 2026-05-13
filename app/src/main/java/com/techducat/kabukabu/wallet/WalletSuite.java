@@ -321,8 +321,16 @@ public class WalletSuite {
                 walletDir.mkdirs();
                 String walletPath = new File(walletDir, "kabu_wallet").getAbsolutePath();
 
-                // Load existing or create fresh
-                if (new File(walletPath).exists()) {
+                // Load existing or create fresh.
+                // FIX 4: Check for the .keys file, not the bare wallet path.
+                // The Monero wallet format never writes a file at the bare path — only
+                // walletname.keys, walletname.cache, etc.  Using the bare path always
+                // evaluates to false, so createWallet() would be called on every restart
+                // even when a valid wallet already exists on disk, risking file corruption.
+                // Matches Verzus: new File(walletPath + ".keys").exists()
+                File keysFile = new File(walletPath + ".keys");
+                Log.d(TAG, "Keys file exists: " + keysFile.exists());
+                if (keysFile.exists()) {
                     wallet = walletManager.openWallet(walletPath);
                 } else {
                     wallet = walletManager.createWallet(walletPath);
