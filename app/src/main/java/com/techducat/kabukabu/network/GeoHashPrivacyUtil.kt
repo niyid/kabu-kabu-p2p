@@ -68,7 +68,7 @@ object GeoHashPrivacyUtil {
     fun cellCentreForDisplay(geohash: String): Pair<Double, Double>? {
         return try {
             val gh = GeoHash.fromGeohashString(geohash)
-            val pt: WGS84Point = gh.boundingBoxCenterPoint
+            val pt: WGS84Point = gh.boundingBox.centerPoint
             Pair(pt.latitude, pt.longitude)
         } catch (_: Exception) { null }
     }
