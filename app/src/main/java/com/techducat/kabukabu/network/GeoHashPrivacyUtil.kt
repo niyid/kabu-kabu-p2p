@@ -1,7 +1,6 @@
 package com.techducat.kabukabu.network
 
 import ch.hsr.geohash.GeoHash
-import ch.hsr.geohash.WGS84Point
 import com.techducat.kabukabu.BuildConfig
 
 /**
@@ -67,9 +66,10 @@ object GeoHashPrivacyUtil {
      */
     fun cellCentreForDisplay(geohash: String): Pair<Double, Double>? {
         return try {
-            val gh = GeoHash.fromGeohashString(geohash)
-            val pt: WGS84Point = gh.boundingBox.centerPoint
-            Pair(pt.latitude, pt.longitude)
+            val bb  = GeoHash.fromGeohashString(geohash).boundingBox
+            val lat = (bb.minLat + bb.maxLat) / 2.0
+            val lon = (bb.minLon + bb.maxLon) / 2.0
+            Pair(lat, lon)
         } catch (_: Exception) { null }
     }
 
