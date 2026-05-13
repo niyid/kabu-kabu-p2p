@@ -16,9 +16,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ch.hsr.geohash.GeoHash
 import com.google.android.gms.location.*
-import com.techducat.kabukabu.db.KabuDatabase
-import com.techducat.kabukabu.db.PeerReviewEntity
 import com.techducat.kabukabu.db.TripEntity
+import com.techducat.kabukabu.db.TripRepository
+import javax.inject.Inject
 import com.techducat.kabukabu.model.*
 import com.techducat.kabukabu.service.I2PKabuService
 import com.techducat.kabukabu.ui.RequestAdapter
@@ -62,6 +62,10 @@ class DriverActivity :
         private const val PREFS_NAME            = KabuKabuApp.PREFS_NAME
         private const val KEY_DEVICE_ID         = KabuKabuApp.KEY_DEVICE_ID
     }
+
+    // ── Injected dependencies ─────────────────────────────────────────────────
+
+    @Inject lateinit var tripRepository: TripRepository
 
     // ── State ─────────────────────────────────────────────────────────────────
 
@@ -356,11 +360,9 @@ class DriverActivity :
             note           = request.noteForDriver,
             timestamp      = request.timestamp,
             expiresAt      = now + TripEntity.TRIP_RETENTION_MS,
-            isLocalOrigin  = false
+            isLocalOrigin  = true
         )
-        withContext(Dispatchers.IO) {
-            KabuDatabase.getInstance(applicationContext).tripDao().insertTrip(entity)
-        }
+        tripRepository.saveTrip(entity)
     }
 
     // ── I2PKabuClient callbacks ───────────────────────────────────────────────

@@ -210,12 +210,26 @@ class MainActivity :
     private fun startI2PService() {
         I2PKabuService.startService(this)
         lifecycleScope.launch {
-            // Wait briefly for service to bind
+            // Wait briefly for service to bind, then attempt to connect.
+            // If location hasn't been granted yet lastKnownGeohash will be
+            // empty here — onLocationUpdate() calls initClientIfReady() once
+            // the first fix arrives, so we don't silently drop the init.
             kotlinx.coroutines.delay(2000)
-            if (lastKnownGeohash.isNotEmpty()) {
-                val ok = i2pClient.initialize(deviceId, lastKnownGeohash, currentRole)
-                Log.i(TAG, "I2PKabuClient initialized: $ok")
-            }
+            initClientIfReady()
+        }
+    }
+
+    /**
+     * Connect the I2P client to the service when both prerequisites are met:
+     *   1. The device is registered (deviceId is non-empty).
+     *   2. The first GPS fix has been converted to a geohash.
+     * Safe to call multiple times — I2PKabuClient.initialize() is idempotent.
+     */
+    private fun initClientIfReady() {
+        if (!isRegistered || lastKnownGeohash.isEmpty()) return
+        lifecycleScope.launch {
+            val ok = i2pClient.initialize(deviceId, lastKnownGeohash, currentRole)
+            Log.i(TAG, "I2PKabuClient initialized: $ok")
         }
     }
 
@@ -245,7 +259,12 @@ class MainActivity :
             tvGeohash.text = getString(R.string.zone_label, newGeohash)
             Log.d(TAG, "Geohash updated: $old → $newGeohash")
 
-            if (isRegistered && old.isNotEmpty()) {
+            // Bug 24: if this is the first fix and the client hasn't connected
+            // yet (because startI2PService ran before location was available),
+            // connect now.
+            if (old.isEmpty()) {
+                initClientIfReady()
+            } else if (isRegistered) {
                 lifecycleScope.launch {
                     i2pClient.updateLocation(old, newGeohash)
                 }
@@ -552,9 +571,16 @@ class MainActivity :
 
         btnRequestRide.setOnClickListener { onRequestRideTapped() }
         btnSwitchRole.setOnClickListener  {
-            currentRole = if (currentRole == "rider") "driver" else "rider"
-            sharedPreferences.edit().putString(KEY_ROLE, currentRole).apply()
-            tvRole.text = currentRole.replaceFirstChar { it.uppercaseChar() }
+            if (currentRole == "rider") {
+                // Persist role then launch the dedicated driver UI
+                currentRole = "driver"
+                sharedPreferences.edit().putString(KEY_ROLE, currentRole).apply()
+                startActivity(Intent(this, DriverActivity::class.java))
+            } else {
+                currentRole = "rider"
+                sharedPreferences.edit().putString(KEY_ROLE, currentRole).apply()
+                tvRole.text = currentRole.replaceFirstChar { it.uppercaseChar() }
+            }
         }
         tvRole.text = currentRole.replaceFirstChar { it.uppercaseChar() }
     }

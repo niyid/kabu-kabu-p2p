@@ -274,8 +274,17 @@ class I2PKabuService : LifecycleService() {
             "ride_request" -> {
                 val requestId = json.getString("request_id")
                 json.put("_received_ms", System.currentTimeMillis())
+                // Bug 16: enforce capacity cap — evict oldest entry when full
+                if (activeRequests.size >= MAX_ACTIVE_REQUESTS) {
+                    activeRequests.entries
+                        .minByOrNull { it.value.optLong("_received_ms", 0L) }
+                        ?.key
+                        ?.let { activeRequests.remove(it) }
+                }
                 activeRequests[requestId] = json
-                persistTripRecord(json, session.deviceId?.let { peerRegistry[it]?.role } ?: "rider")
+                // Bug 22: rides from the local client originate on this device
+                val localRole = session.deviceId?.let { peerRegistry[it]?.role } ?: "rider"
+                persistTripRecord(json, localRole, isLocalOrigin = true)
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
                 Log.i(TAG, "Ride request fanned out: $requestId")
@@ -350,7 +359,7 @@ class I2PKabuService : LifecycleService() {
         if (peerInfo.isEmpty()) { Log.w(TAG, "Empty multisig info — ignoring"); return }
         Log.i(TAG, "handleWalletMultisigInfo: rideId=$rideId peerIsRider=$isRider")
 
-        val rwm = RideWalletManager(this)
+        val rwm = rideWalletManager
         // Driver does not fund escrow; only the rider sends fare
         rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else fareAtomic)
 
@@ -435,7 +444,7 @@ class I2PKabuService : LifecycleService() {
         if (riderAddress.isEmpty()) { Log.w(TAG, "Empty rider address in refund req"); return }
         Log.i(TAG, "handleWalletRefundRequest: rideId=$rideId")
 
-        val rwm = RideWalletManager(this)
+        val rwm = rideWalletManager
         rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {
             override fun onRefundComplete(txId: String) {
                 broadcastToLocalClients(JSONObject().apply {
@@ -481,7 +490,7 @@ class I2PKabuService : LifecycleService() {
         }
     }
 
-    private suspend fun persistTripRecord(json: JSONObject, localRole: String = "rider") {
+    private suspend fun persistTripRecord(json: JSONObject, localRole: String = "rider", isLocalOrigin: Boolean = false) {
         try {
             val now = System.currentTimeMillis()
             val entity = TripEntity(
@@ -496,7 +505,7 @@ class I2PKabuService : LifecycleService() {
                 note           = json.optString("note"),
                 timestamp      = json.optLong("timestamp", now),
                 expiresAt      = now + TripEntity.TRIP_RETENTION_MS,
-                isLocalOrigin  = false
+                isLocalOrigin  = isLocalOrigin
             )
             tripDao.insertTrip(entity)
         } catch (e: Exception) {
@@ -521,6 +530,12 @@ class I2PKabuService : LifecycleService() {
                     val ts  = entry.value.optLong("_received_ms", 0L)
                     now - ts > ttl
                 }
+                // Bug 17: evict peers not seen within PEER_SYNC_WINDOW
+                val stalePeers = peerRegistry.entries
+                    .filter { now - it.value.lastSeen > PEER_SYNC_WINDOW }
+                    .map { it.key }
+                stalePeers.forEach { peerRegistry.remove(it) }
+                if (stalePeers.isNotEmpty()) Log.i(TAG, "Evicted ${stalePeers.size} stale peer(s)")
                 val deleted = tripDao.cleanupExpired(now)
                 if (deleted > 0) Log.i(TAG, "Purged $deleted expired trip records")
             }

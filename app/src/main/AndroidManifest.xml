@@ -99,6 +99,13 @@
             android:exported="false"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.KabuKabu"/>
+
+        <!-- WalletActivity — XMR balance, escrow status, top-up UI -->
+        <activity
+            android:name=".wallet.WalletActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.KabuKabu"/>
     </application>
 
 </manifest>

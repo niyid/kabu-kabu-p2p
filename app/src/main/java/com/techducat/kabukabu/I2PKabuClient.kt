@@ -2,6 +2,7 @@ package com.techducat.kabukabu
 
 import android.content.Context
 import android.util.Log
+import com.techducat.kabukabu.BuildConfig
 import com.techducat.kabukabu.model.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -65,7 +66,7 @@ class I2PKabuClient(private val context: Context) {
         private const val TAG = "I2PKabuClient"
 
         const val SERVICE_HOST           = "127.0.0.1"
-        const val SERVICE_PORT           = 8881
+        val SERVICE_PORT                 = BuildConfig.I2P_SERVICE_PORT
 
         const val CONNECTION_TIMEOUT_MS  = 15_000
         const val READ_TIMEOUT_MS        = 30_000
@@ -389,11 +390,11 @@ class I2PKabuClient(private val context: Context) {
     private fun broadcastAvailability() {
         scope.launch {
             sendMessage(JSONObject().apply {
-                put("type",      "status")
+                put("type",      "location_update")
                 put("device_id", deviceId)
-                put("geohash",   currentGeohash)
+                put("old_geohash", currentGeohash)
+                put("new_geohash", currentGeohash)
                 put("role",      currentRole)
-                put("status",    "available")
                 put("timestamp", System.currentTimeMillis())
             })
         }
@@ -424,6 +425,7 @@ class I2PKabuClient(private val context: Context) {
 
     private fun cleanupConnection() {
         connected.set(false); state.set(State.DISCONNECTED)
+        initializing.set(false)
         heartbeatJob?.cancel(); heartbeatJob = null
         try { writer?.close() } catch (_: Exception) {}
         try { reader?.close() } catch (_: Exception) {}
