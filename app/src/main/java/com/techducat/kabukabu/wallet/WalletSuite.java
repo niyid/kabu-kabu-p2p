@@ -69,6 +69,29 @@ public class WalletSuite {
     private static final long SYNC_TIMEOUT_MS        = 7_200_000L; // 2 h
     private static final long PERIODIC_SYNC_INTERVAL = 600_000L;   // 10 min
 
+    // ── Native library ────────────────────────────────────────────────────────
+
+    private static volatile boolean nativeChecked = false;
+    private static volatile boolean nativeOk      = false;
+
+    private static boolean nativeAvailable() {
+        if (!nativeChecked) {
+            synchronized (WalletSuite.class) {
+                if (!nativeChecked) {
+                    try {
+                        System.loadLibrary("monerujo");
+                        nativeOk = true;
+                    } catch (Throwable e) {
+                        nativeOk = false;
+                        Log.e(TAG, "Failed to load native library monerujo", e);
+                    }
+                    nativeChecked = true;
+                }
+            }
+        }
+        return nativeOk;
+    }
+
     // ── Singleton ─────────────────────────────────────────────────────────────
 
     private static volatile WalletSuite instance;
@@ -222,8 +245,10 @@ public class WalletSuite {
         });
 
         // Initialise native Monero library (same lib as Verzus/Monerujo)
+        if (!nativeAvailable()) {
+            throw new RuntimeException("libmonerujo.so could not be loaded — check jniLibs/arm64-v8a");
+        }
         try {
-            //WalletManager.initLogger("kabu", "kabu-wallet");
             walletManager = WalletManager.getInstance();
             loadConfiguration();
             Log.i(TAG, "WalletSuite created — daemon: " + daemonAddress + ":" + daemonPort);
@@ -272,6 +297,10 @@ public class WalletSuite {
         }
         activeUserId = userId;
         executor.execute(() -> {
+            if (!nativeAvailable()) {
+                notifyInitResult(false, "Native Monero library unavailable — libmonerujo.so not loaded");
+                return;
+            }
             try {
                 Log.i(TAG, "=== INIT WALLET for " + userId.substring(0, 8) + "... ===");
 
