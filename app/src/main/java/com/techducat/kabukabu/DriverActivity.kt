@@ -22,10 +22,13 @@ import javax.inject.Inject
 import com.techducat.kabukabu.model.*
 import com.techducat.kabukabu.service.I2PKabuService
 import com.techducat.kabukabu.ui.RequestAdapter
+import com.techducat.kabukabu.wallet.RideWalletManager
+import com.techducat.kabukabu.wallet.WalletSuite
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.util.UUID
 
 /**
@@ -53,6 +56,7 @@ import java.util.UUID
 class DriverActivity :
     AppCompatActivity(),
     I2PKabuClient.RideRequestHandler,
+    I2PKabuClient.OfferAcceptHandler,
     I2PKabuClient.PeerStatusHandler {
 
     companion object {
@@ -102,6 +106,10 @@ class DriverActivity :
     private val openRequests = mutableListOf<RideRequest>()
     private var isOnline     = false
 
+    // ── Wallet ────────────────────────────────────────────────────────────────
+
+    private lateinit var rideWalletManager: RideWalletManager
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,7 +126,15 @@ class DriverActivity :
 
         i2pClient = I2PKabuClient(this)
         i2pClient.addRideRequestHandler("driver", this)
-        i2pClient.addPeerStatusHandler ("driver", this)
+        i2pClient.addOfferAcceptHandler ("driver", this)
+        i2pClient.addPeerStatusHandler  ("driver", this)
+
+        rideWalletManager = RideWalletManager(this)
+        rideWalletManager.setPaymentListener(driverPaymentListener)
+        // Wallet may already be initialized by MainActivity; initializeWallet() is idempotent.
+        if (deviceId.isNotEmpty()) {
+            WalletSuite.getInstance(this).initializeWallet(deviceId)
+        }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         setupLocationCallback()
@@ -373,6 +389,76 @@ class DriverActivity :
         runOnUiThread {
             openRequests.add(0, request)
             requestAdapter.notifyItemInserted(0)
+        }
+    }
+
+    /**
+     * Rider accepted our offer — start the driver-side 2-of-2 escrow setup.
+     * The driver calls prepareLocalEscrow() and sends the multisig info to the
+     * rider over I2P (MSG_TYPE_WALLET_MULTISIG_INFO).
+     */
+    override fun onOfferAccepted(offerId: String, requestId: String, riderId: String) {
+        Log.i(TAG, "Offer accepted: offerId=$offerId requestId=$requestId")
+        driverState = DriverState.OFFER_SENT   // confirmed — now wait for escrow
+        updateStatusButton()
+        // The agreed fare: use the counter-fare if the driver proposed one, else rider's estimate.
+        val agreedFare = activeRequest?.fareEstimateXMR ?: 0L
+        // Driver-side escrow: fare = 0 (driver doesn't fund)
+        rideWalletManager.prepareLocalEscrow(
+            onReady = { myInfo, myAddress ->
+                val msg = JSONObject().apply {
+                    put("type",      "wallet_multisig_info")
+                    put("info",      myInfo)
+                    put("address",   myAddress)
+                    // Echo the agreed fare so the rider's device knows how much to lock in escrow.
+                    // The rider's I2PKabuService reads this when finalising the escrow on its side.
+                    put("fare_xmr",  agreedFare)
+                    put("ride_id",   requestId)
+                    put("is_rider",  false)          // this message comes from the driver
+                }
+                i2pClient.sendRawMessage(msg.toString())
+                Log.i(TAG, "Driver multisig info sent to rider (fare=$agreedFare)")
+            },
+            onError = { error ->
+                Log.e(TAG, "Driver prepareLocalEscrow error: $error")
+                runOnUiThread { tvDriverStatus.text = "Wallet error: $error" }
+            }
+        )
+    }
+
+    override fun onOfferRejected(offerId: String, requestId: String) {
+        Log.i(TAG, "Offer rejected: offerId=$offerId")
+        runOnUiThread {
+            driverState = DriverState.IDLE
+            activeRequest = null
+            activeTripId  = ""
+            updateStatusButton()
+            tvTripInfo.text = getString(R.string.offer_rejected)
+        }
+    }
+
+    // ── Driver wallet payment listener ────────────────────────────────────────
+
+    private val driverPaymentListener = object : RideWalletManager.RidePaymentListener {
+        override fun onEscrowReady(escrowAddress: String) {
+            Log.i(TAG, "Driver: escrow address confirmed: ${escrowAddress.take(16)}…")
+            runOnUiThread { tvDriverStatus.text = getString(R.string.driver_status_online) }
+        }
+        override fun onEscrowFunded(escrowAddress: String) {
+            Log.i(TAG, "Driver: escrow funded by rider — ready to go")
+            runOnUiThread { tvDriverStatus.text = "Escrow funded — proceed to pickup" }
+        }
+        override fun onPaymentReleased(txId: String) {
+            Log.i(TAG, "Driver: payment received — txId: $txId")
+            runOnUiThread { tvDriverStatus.text = "Payment received ✓" }
+        }
+        override fun onRefundComplete(txId: String) {
+            Log.i(TAG, "Driver: refund processed — txId: $txId")
+        }
+        override fun onBalanceCheckResult(s: Boolean, u: String, f: String, sh: String) {}
+        override fun onPaymentError(phase: String, error: String) {
+            Log.e(TAG, "Driver wallet error in $phase: $error")
+            runOnUiThread { tvDriverStatus.text = "Wallet error: $error" }
         }
     }
 

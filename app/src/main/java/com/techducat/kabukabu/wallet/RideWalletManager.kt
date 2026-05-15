@@ -219,30 +219,26 @@ class RideWalletManager(private val context: Context) {
                     }
                 })
         } else {
-            // First signer — build partial TX, relay to peer
-            walletSuite.releaseEscrowToDriver(
-                driverXmrAddress,
-                fareAtomicUnits,
-                emptyList(),
-                object : WalletSuite.PaymentReleaseCallback {
-                    override fun onSuccess(txId: String, amountAtomic: Long) {
-                        // If WalletSuite broadcast directly (non-multisig fallback)
-                        paymentListener?.onPaymentReleased(txId)
-                    }
-                    override fun onError(error: String) {
-                        // For real 2-of-2 this is expected — we need peer's sig
-                        // Export our partial TX and send to peer
-                        walletSuite.exportMultisigImages(object : WalletSuite.ExportMultisigCallback {
-                            override fun onSuccess(info: String) {
-                                Log.d(TAG, "Partial TX exported — sending to peer")
-                                onNeedPeerSignature(info)
-                            }
-                            override fun onError(expErr: String) {
-                                paymentListener?.onPaymentError("export_partial", expErr)
-                            }
-                        })
-                    }
-                })
+            // First signer (rider):
+            //   Step 1 — export our partial signing images.
+            //   Step 2 — relay the blob to the driver over I2P (onNeedPeerSignature callback).
+            //   Step 3 — driver calls coSignAndBroadcast() which imports our images,
+            //             builds a TX, and commits with both key-shares.
+            //
+            // We do NOT call releaseEscrowToDriver() here: that call tries to commit
+            // unilaterally, which always fails in a 2-of-2 wallet and conflates
+            // genuine errors (insufficient balance, wallet not in multisig mode) with
+            // the expected "need peer signature" path.
+            walletSuite.exportMultisigImages(object : WalletSuite.ExportMultisigCallback {
+                override fun onSuccess(info: String) {
+                    Log.i(TAG, "Partial signing image exported — relaying to driver for co-sign")
+                    onNeedPeerSignature(info)
+                }
+                override fun onError(error: String) {
+                    Log.e(TAG, "exportMultisigImages failed: $error")
+                    paymentListener?.onPaymentError("export_partial", error)
+                }
+            })
         }
     }
 

@@ -71,6 +71,9 @@ class WalletActivity : AppCompatActivity(), WalletSuite.WalletStatusListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Clear the listener ONLY if it's still this activity — the singleton WalletSuite
+        // may have had its listener overwritten by MainActivity between our onCreate and onDestroy.
+        // Using setStatusListener(null) unconditionally is safe because WalletSuite now accepts null.
         walletSuite.setStatusListener(null)
     }
 

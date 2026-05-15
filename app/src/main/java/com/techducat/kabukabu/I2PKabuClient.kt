@@ -118,6 +118,13 @@ class I2PKabuClient(private val context: Context) {
         fun onTripEventReceived(event: TripEvent)
     }
 
+    interface OfferAcceptHandler {
+        /** Called when a rider accepted our driver offer. */
+        fun onOfferAccepted(offerId: String, requestId: String, riderId: String)
+        /** Called when a rider rejected our driver offer. */
+        fun onOfferRejected(offerId: String, requestId: String)
+    }
+
     interface PeerStatusHandler {
         fun onPeerOnline(peerId: String)
         fun onPeerOffline(peerId: String)
@@ -133,12 +140,14 @@ class I2PKabuClient(private val context: Context) {
     private val rideRequestListeners  = ConcurrentHashMap<String, RideRequestHandler>()
     private val driverOfferListeners  = ConcurrentHashMap<String, DriverOfferHandler>()
     private val tripEventListeners    = ConcurrentHashMap<String, TripEventHandler>()
+    private val offerAcceptListeners  = ConcurrentHashMap<String, OfferAcceptHandler>()
     private val peerStatusListeners   = ConcurrentHashMap<String, PeerStatusHandler>()
     private val i2pStateListeners     = ConcurrentHashMap<String, I2PStateHandler>()
 
     fun addRideRequestHandler (key: String, h: RideRequestHandler)  { rideRequestListeners[key] = h }
     fun addDriverOfferHandler (key: String, h: DriverOfferHandler)  { driverOfferListeners[key] = h }
     fun addTripEventHandler   (key: String, h: TripEventHandler)    { tripEventListeners[key] = h }
+    fun addOfferAcceptHandler (key: String, h: OfferAcceptHandler)  { offerAcceptListeners[key] = h }
     fun addPeerStatusHandler  (key: String, h: PeerStatusHandler)   { peerStatusListeners[key] = h }
     fun addI2PStateHandler    (key: String, h: I2PStateHandler)     { i2pStateListeners[key] = h }
 
@@ -335,6 +344,17 @@ class I2PKabuClient(private val context: Context) {
                 )
                 tripEventListeners.values.forEach { it.onTripEventReceived(event) }
             }
+            "offer_accept" -> {
+                val offerId   = json.optString("offer_id")
+                val requestId = json.optString("request_id")
+                val riderId   = json.optString("rider_id")
+                offerAcceptListeners.values.forEach { it.onOfferAccepted(offerId, requestId, riderId) }
+            }
+            "offer_reject" -> {
+                val offerId   = json.optString("offer_id")
+                val requestId = json.optString("request_id")
+                offerAcceptListeners.values.forEach { it.onOfferRejected(offerId, requestId) }
+            }
             "peer_status" -> {
                 val peerId = json.getString("peer_id")
                 val online = json.getString("status") == "online"
@@ -395,7 +415,9 @@ class I2PKabuClient(private val context: Context) {
             Log.i(TAG, "Reconnecting in ${delay}ms (attempt ${reconnectCount + 1})")
             delay(delay)
             reconnectCount++
-            initialize(deviceId, currentGeohash, currentRole)
+            val ok = initialize(deviceId, currentGeohash, currentRole)
+            // Reset the counter on success so future disconnects start fresh
+            if (ok) reconnectCount = 0
         }
     }
 
@@ -457,9 +479,13 @@ class I2PKabuClient(private val context: Context) {
      * Send a raw JSON string directly to the local I2PKabuService TCP socket.
      * Used by the XMR wallet flow to relay multisig and partial-TX messages
      * over I2P without going through the typed ride-request helpers.
+     *
+     * Dispatches to the IO scope — safe to call from the main thread.
      */
     fun sendRawMessage(json: String) {
-        try { writer?.println(json) }
-        catch (e: Exception) { Log.e(TAG, "sendRawMessage failed: ${e.message}") }
+        scope.launch(Dispatchers.IO) {
+            try { writer?.println(json) }
+            catch (e: Exception) { Log.e(TAG, "sendRawMessage failed: ${e.message}") }
+        }
     }
 }

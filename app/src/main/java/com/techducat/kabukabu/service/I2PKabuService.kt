@@ -400,7 +400,12 @@ class I2PKabuService : LifecycleService() {
         Log.i(TAG, "handleWalletMultisigInfo: rideId=$rideId peerIsRider=$isRider")
 
         val rwm = rideWalletManager
-        // Driver does not fund escrow; only the rider sends fare
+        // `is_rider` flag identifies the SENDER of this message, not this device.
+        //
+        //  Message from RIDER  → received on DRIVER device: isRider=true  → driver doesn't fund → 0L
+        //  Message from DRIVER → received on RIDER  device: isRider=false → rider funds escrow  → fareAtomic
+        //
+        // The driver echoes the agreed fare_xmr in its message so the rider knows how much to lock.
         rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else fareAtomic)
 
         rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {

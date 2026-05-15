@@ -3,6 +3,7 @@ package com.techducat.kabukabu.network
 import android.content.Context
 import android.os.Looper
 import android.util.Log
+import com.techducat.kabukabu.BuildConfig
 import kotlinx.coroutines.*
 import java.io.*
 import java.net.InetSocketAddress
@@ -208,7 +209,10 @@ class EmbeddedI2PRouter private constructor(
     // ── Config ────────────────────────────────────────────────────────────────
 
     private fun initializeConfig(): File {
-        val configDir = File(context.filesDir, I2P_CONFIG_DIR)
+        // Use the same device-specific path returned by getConfigDir() so that
+        // stale-config detection, cert copying, and System.setProperty all operate
+        // on the same directory that the router will actually run from.
+        val configDir = getConfigDir()
 
         // Stale-config detection (mirrors verzus-p2p logic):
         // If router.config exists but netDb has fewer than 20 router infos the
@@ -277,13 +281,15 @@ class EmbeddedI2PRouter private constructor(
             // Disable I2P's built-in DNS-over-HTTPS — broken SSLContext on Android.
             setProperty("eepget.useDNSOverHTTPS", "false")
 
-            // Logging
-            setProperty("logger.defaultLevel",                                   "DEBUG")
+            // Only emit verbose I2P router logs in debug builds — the reseed/EepGet loggers
+            // are extremely chatty and fill the logcat buffer on slow networks.
+            val logLevel = if (BuildConfig.DEBUG) "DEBUG" else "WARN"
+            setProperty("logger.defaultLevel",                                   logLevel)
             setProperty("logger.fileSize",                                        "2M")
-            setProperty("logger.record.net.i2p.router.networkdb.reseed",         "DEBUG")
-            setProperty("logger.record.net.i2p.util.EepGet",                     "DEBUG")
-            setProperty("logger.record.net.i2p.router.networkdb.reseed.Reseeder","DEBUG")
-            setProperty("logger.record.net.i2p.router.Router",                   "DEBUG")
+            setProperty("logger.record.net.i2p.router.networkdb.reseed",         logLevel)
+            setProperty("logger.record.net.i2p.util.EepGet",                     logLevel)
+            setProperty("logger.record.net.i2p.router.networkdb.reseed.Reseeder",logLevel)
+            setProperty("logger.record.net.i2p.router.Router",                   logLevel)
 
             // Naming
             setProperty(NAMING_IMPL_PROP, HOSTS_TXT_NAMING)

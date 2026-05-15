@@ -343,8 +343,16 @@ class MainActivity :
         }
     }
 
-    /** Simple fare estimate — placeholder until osrm offline routing is added. */
-    private fun estimateFare(): Long = 500L   // ɱ500 base (mc)
+    /** Estimate fare using the on-device FareEstimator (geohash distance + rate table). */
+    private fun estimateFare(): Long =
+        com.techducat.kabukabu.network.FareEstimator.estimate(
+            pickupGeohash  = lastKnownGeohash,
+            dropoffGeohash = "",              // dropoff unknown at request time
+            serviceType    = if (currentRole == "courier_sender")
+                                 com.techducat.kabukabu.model.ServiceType.COURIER
+                             else
+                                 com.techducat.kabukabu.model.ServiceType.TAXI
+        )
 
     // ── XMR wallet — offer acceptance gate ────────────────────────────────────
 
@@ -507,12 +515,32 @@ class MainActivity :
                 }
                 TripEventType.TRIP_CANCELLED -> {
                     tvStatus.text = getString(R.string.event_trip_cancelled)
-                    // Refund escrow back to rider
-                    rideWalletManager.refundToRider(
-                        riderXmrAddress    = myXmrAddress,
-                        fareAtomicUnits    = currentFareAtomicUnits,
-                        peerSignatureInfos = emptyList()
-                    )
+                    // Refund escrow back to rider — guard against address not yet loaded
+                    if (myXmrAddress.isNotEmpty()) {
+                        rideWalletManager.refundToRider(
+                            riderXmrAddress    = myXmrAddress,
+                            fareAtomicUnits    = currentFareAtomicUnits,
+                            peerSignatureInfos = emptyList()
+                        )
+                    } else {
+                        // Address still loading — fetch it then refund
+                        WalletSuite.getInstance(this@MainActivity).getAddress(
+                            object : WalletSuite.AddressCallback {
+                                override fun onSuccess(address: String) {
+                                    myXmrAddress = address
+                                    rideWalletManager.refundToRider(
+                                        riderXmrAddress    = address,
+                                        fareAtomicUnits    = currentFareAtomicUnits,
+                                        peerSignatureInfos = emptyList()
+                                    )
+                                }
+                                override fun onError(error: String) {
+                                    Log.e(TAG, "Cannot refund — address unavailable: $error")
+                                    tvStatus.text = "Refund failed: wallet address unavailable"
+                                }
+                            }
+                        )
+                    }
                 }
                 TripEventType.DRIVER_EN_ROUTE -> tvStatus.text = getString(R.string.event_en_route)
                 TripEventType.DRIVER_ARRIVED  -> tvStatus.text = getString(R.string.event_arrived)

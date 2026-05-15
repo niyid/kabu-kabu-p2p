@@ -32,6 +32,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import com.m2049r.xmrwallet.data.Node;
 import com.m2049r.xmrwallet.model.PendingTransaction;
 import com.m2049r.xmrwallet.model.Wallet;
@@ -393,8 +395,8 @@ public class WalletSuite {
     //  Listener registration
     // =========================================================================
 
-    public void setStatusListener(WalletStatusListener l)  { statusListener    = l; }
-    public void setTransactionListener(TransactionListener l) { transactionListener = l; }
+    public void setStatusListener(@Nullable WalletStatusListener l)  { statusListener    = l; }
+    public void setTransactionListener(@Nullable TransactionListener l) { transactionListener = l; }
 
     // =========================================================================
     //  Balance helpers
@@ -701,14 +703,47 @@ public class WalletSuite {
         executor.execute(() -> {
             try {
                 Log.i(TAG, "=== CO-SIGN & BROADCAST ===");
-                // signMultisigTxHex / submitMultisigTxHex are not available in this JNI binding.
-                // Per verzus workaround: reconstruct a PendingTransaction from the partial hex
-                // and use commit() which performs signing + broadcast in multisig wallets.
-                PendingTransaction pendingTx = wallet.getPendingTransaction();
-                if (pendingTx == null) {
-                    mainHandler.post(() -> cb.onError("No pending transaction to co-sign"));
+                // The partial TX hex was serialised by the first signer (rider) via
+                // exportMultisigImages() and relayed over I2P.  We must load it into
+                // the wallet as multisig images before building and committing our
+                // own side of the transaction.
+                //
+                // signMultisigTxHex / submitMultisigTxHex are not exposed by this JNI
+                // binding, so we follow the verzus-p2p workaround:
+                //   1. Import the peer's partial signing image (partialTxHex).
+                //   2. Build a fresh PendingTransaction to the same destination.
+                //   3. commit() combines both signatures and broadcasts.
+                if (partialTxHex == null || partialTxHex.isEmpty()) {
+                    mainHandler.post(() -> cb.onError("partialTxHex is empty — nothing to co-sign"));
                     return;
                 }
+
+                // Step 1: import the peer's signing image
+                String[] peerImages = new String[]{ partialTxHex };
+                long imported = wallet.importMultisigImages(peerImages);
+                Log.i(TAG, "Imported " + imported + " peer multisig image(s)");
+
+                // Step 2: build a spending tx to the destination that was agreed earlier.
+                // destinationAddr carries the driver's address (passed by the caller).
+                if (destinationAddr == null || destinationAddr.isEmpty()) {
+                    mainHandler.post(() -> cb.onError("destinationAddr is empty — cannot build co-sign TX"));
+                    return;
+                }
+
+                // Use the wallet's entire available (unlocked) balance as the amount;
+                // sweep is the safest approach for a 2-of-2 escrow payout.
+                long amount = wallet.getUnlockedBalance();
+                PendingTransaction pendingTx = wallet.createTransaction(
+                    destinationAddr, "", amount, 15,
+                    PendingTransaction.Priority.Priority_Default.getValue(), 0);
+
+                if (pendingTx == null || pendingTx.getStatus() != PendingTransaction.Status.Status_Ok) {
+                    String err = (pendingTx != null) ? pendingTx.getErrorString() : wallet.getErrorString();
+                    mainHandler.post(() -> cb.onError("Cannot build co-sign TX: " + err));
+                    return;
+                }
+
+                // Step 3: commit (signs with our key-share and broadcasts)
                 boolean signed = pendingTx.commit("", true);
                 if (!signed) {
                     String err = pendingTx.getErrorString();
@@ -716,10 +751,11 @@ public class WalletSuite {
                     mainHandler.post(() -> cb.onError("commit (co-sign) failed: " + err));
                     return;
                 }
+                // getFirstTxId() must be called AFTER commit()
                 String txId = pendingTx.getFirstTxId();
                 wallet.disposePendingTransaction();
                 if (txId == null || txId.isEmpty()) {
-                    mainHandler.post(() -> cb.onError("broadcast failed: empty txId"));
+                    mainHandler.post(() -> cb.onError("broadcast failed: empty txId after co-sign"));
                     return;
                 }
                 Log.i(TAG, "✓ Broadcast complete — txId: " + txId);
@@ -843,9 +879,11 @@ public class WalletSuite {
                     mainHandler.post(() -> cb.onError(err));
                     return;
                 }
-                String txId = pt.getFirstTxId();
-                boolean ok  = pt.commit("", true);
+                // getFirstTxId() is only populated AFTER commit(); calling it before
+                // always returns an empty string.  Commit first, then read the txId.
+                boolean ok = pt.commit("", true);
                 if (!ok) { mainHandler.post(() -> cb.onError(pt.getErrorString())); return; }
+                String txId = pt.getFirstTxId();
                 wallet.store();
                 updateBalanceFromWallet();
                 mainHandler.post(() -> cb.onSuccess(txId, atomic));
