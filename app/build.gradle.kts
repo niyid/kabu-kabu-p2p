@@ -76,8 +76,8 @@ android {
         applicationId   = "com.techducat.kabukabu"
         minSdk          = 26          // I2P embedded router requires API 26+
         targetSdk       = 36
-        versionCode     = 5 
-        versionName     = "0.0.5-p2p"
+        versionCode     = 6 
+        versionName     = "0.0.6-p2p"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
