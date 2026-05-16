@@ -6,7 +6,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.techducat.kabukabu.db.TripEntity
@@ -73,12 +75,17 @@ class TripHistoryActivity : AppCompatActivity() {
 
     private fun observeTrips() {
         lifecycleScope.launch {
-            repository.allTripsFlow().collect { list ->
-                trips.clear()
-                trips.addAll(list)
-                historyAdapter.notifyDataSetChanged()
-                tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-                rvHistory.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+            // repeatOnLifecycle(STARTED) cancels the inner block when the activity moves to STOPPED
+            // and re-launches it on the next STARTED transition.  Without this, the Flow collector
+            // continues running in the background (wasting resources and risking UI access after stop).
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                repository.allTripsFlow().collect { list ->
+                    trips.clear()
+                    trips.addAll(list)
+                    historyAdapter.notifyDataSetChanged()
+                    tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                    rvHistory.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+                }
             }
         }
     }

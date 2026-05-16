@@ -338,9 +338,13 @@ class I2PKabuService : LifecycleService() {
             "location_update" -> {
                 val id         = json.optString("device_id")
                 val newGeohash = json.optString("new_geohash")
-                peerRegistry[id]?.let { rec ->
-                    peerRegistry[id] = rec.copy(geohash = newGeohash, lastSeen = System.currentTimeMillis())
-                }
+                val role       = json.optString("role", "rider")
+                val now        = System.currentTimeMillis()
+                // Upsert: create the record if it doesn't exist yet (e.g. location_update arrived
+                // before the handshake from broadcastAvailability), otherwise update the geohash.
+                peerRegistry[id] = peerRegistry[id]
+                    ?.copy(geohash = newGeohash, lastSeen = now)
+                    ?: PeerRecord(id, newGeohash, role, now)
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
             }
@@ -451,28 +455,33 @@ class I2PKabuService : LifecycleService() {
      */
     private fun handleWalletPartialTx(json: JSONObject, session: ClientSession) {
         val partialTxHex  = json.optString("partial_tx_hex", "")
-        val driverAddress = json.optString("driver_address", "")
+        // driver_address carries the co-sign destination: driver's XMR address for payment,
+        // or the rider's XMR address when refund=true.
+        val destinationAddress = json.optString("driver_address", "")
         val rideId        = json.optString("ride_id", "")
+        val isRefund      = json.optBoolean("refund", false)
 
-        if (partialTxHex.isEmpty() || driverAddress.isEmpty()) {
+        if (partialTxHex.isEmpty() || destinationAddress.isEmpty()) {
             Log.w(TAG, "Invalid wallet_partial_tx payload"); return
         }
-        Log.i(TAG, "handleWalletPartialTx: rideId=$rideId — co-signing")
+        Log.i(TAG, "handleWalletPartialTx: rideId=$rideId isRefund=$isRefund — co-signing")
 
         WalletSuite.getInstance(this).coSignAndBroadcast(
             partialTxHex,
-            driverAddress,
+            destinationAddress,
             object : WalletSuite.PaymentReleaseCallback {
                 override fun onSuccess(txId: String, amountAtomic: Long) {
-                    Log.i(TAG, "✓ Payment broadcast: rideId=$rideId txId=$txId")
+                    val label = if (isRefund) "Refund" else "Payment"
+                    Log.i(TAG, "✓ $label broadcast: rideId=$rideId txId=$txId")
                     broadcastToLocalClients(JSONObject().apply {
                         put("type",    MSG_TYPE_WALLET_TX_CONFIRMED)
                         put("tx_id",   txId)
                         put("ride_id", rideId)
+                        if (isRefund) put("refund", true)
                     }.toString())
                 }
                 override fun onError(error: String) {
-                    Log.e(TAG, "coSignAndBroadcast error: $error")
+                    Log.e(TAG, "coSignAndBroadcast error (isRefund=$isRefund): $error")
                 }
             }
         )

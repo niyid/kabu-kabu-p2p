@@ -128,6 +128,7 @@ class DriverActivity :
         i2pClient.addRideRequestHandler("driver", this)
         i2pClient.addOfferAcceptHandler ("driver", this)
         i2pClient.addPeerStatusHandler  ("driver", this)
+        i2pClient.addWalletMessageHandler("driver", driverWalletMessageDispatcher)
 
         rideWalletManager = RideWalletManager(this)
         rideWalletManager.setPaymentListener(driverPaymentListener)
@@ -434,6 +435,53 @@ class DriverActivity :
             activeTripId  = ""
             updateStatusButton()
             tvTripInfo.text = getString(R.string.offer_rejected)
+        }
+    }
+
+    // ── Driver wallet message dispatcher ─────────────────────────────────────
+
+    /**
+     * Routes inbound wallet protocol messages from [I2PKabuClient] to the correct handler.
+     *
+     * On the driver device the relevant messages are:
+     *  - wallet_multisig_info  → rider sent their multisig info; finalise escrow (driver side, no funding).
+     *  - wallet_escrow_ready   → shared escrow address confirmed (rider funded it).
+     *  - wallet_tx_confirmed   → payment broadcast confirmed.
+     */
+    private val driverWalletMessageDispatcher = object : I2PKabuClient.WalletMessageHandler {
+        override fun onWalletMessage(type: String, payload: org.json.JSONObject) {
+            runOnUiThread {
+                when (type) {
+                    "wallet_multisig_info" -> {
+                        // Rider sent their multisig info → driver finalises escrow (no funding)
+                        val peerInfo   = payload.optString("info", "")
+                        val isRider    = payload.optBoolean("is_rider", false)
+                        // Driver receives a message where is_rider=true (sent BY the rider)
+                        // → driver side funds 0 (driver never funds the escrow)
+                        if (peerInfo.isNotEmpty() && isRider) {
+                            Log.i(TAG, "Driver: received rider multisig info — finalising escrow (no funding)")
+                            rideWalletManager.finalizeEscrowWithPeer(peerInfo, 0L)
+                        }
+                    }
+                    "wallet_escrow_ready" -> {
+                        val escrowAddr = payload.optString("escrow_address", "")
+                        val funded     = payload.optBoolean("funded", false)
+                        if (escrowAddr.isNotEmpty()) {
+                            Log.i(TAG, "Driver: escrow ${if (funded) "funded" else "ready"}: ${escrowAddr.take(16)}…")
+                            tvDriverStatus.text = if (funded)
+                                "Escrow funded — proceed to pickup"
+                            else
+                                "Escrow address confirmed"
+                        }
+                    }
+                    "wallet_tx_confirmed" -> {
+                        val txId   = payload.optString("tx_id", "")
+                        val refund = payload.optBoolean("refund", false)
+                        if (refund) driverPaymentListener.onRefundComplete(txId)
+                        else        driverPaymentListener.onPaymentReleased(txId)
+                    }
+                }
+            }
         }
     }
 

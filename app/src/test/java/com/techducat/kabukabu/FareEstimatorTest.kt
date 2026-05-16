@@ -131,8 +131,15 @@ class FareEstimatorTest {
     }
 
     private fun cellCentre(gh: String): Pair<Double, Double>? = try {
-        val g = ch.hsr.geohash.GeoHash.fromGeohashString(gh)
-        Pair(g.originatingPoint.latitude, g.originatingPoint.longitude)
+        val g  = ch.hsr.geohash.GeoHash.fromGeohashString(gh)
+        val bb = g.boundingBox
+        // Use bounding-box midpoint — matches GeoHashPrivacyUtil.cellCentreForDisplay in production.
+        // g.originatingPoint is the SW corner, not the centre; using it produces a ~2.5 km error
+        // on haversine distance calculations which skews fare estimates in tests.
+        Pair(
+            (bb.southLatitude + bb.northLatitude) / 2.0,
+            (bb.westLongitude + bb.eastLongitude) / 2.0
+        )
     } catch (_: Exception) { null }
 
     private fun formatXmr(n: Long) = "ɱ%,d".format(n)

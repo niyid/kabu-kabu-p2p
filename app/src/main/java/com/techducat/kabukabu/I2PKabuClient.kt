@@ -86,7 +86,7 @@ class I2PKabuClient(private val context: Context) {
     private val initializing = AtomicBoolean(false)
     private val reconnectLock = Mutex()
     private val lastHeartbeatOk = AtomicLong(System.currentTimeMillis())
-    private var reconnectCount  = 0
+    @Volatile private var reconnectCount  = 0  // written in reconnectLock and on successful connect
 
     private var socket: Socket?           = null
     private var writer: PrintWriter?      = null
@@ -137,12 +137,31 @@ class I2PKabuClient(private val context: Context) {
         fun onI2PStateChanged(state: String)
     }
 
+    /**
+     * Handler for XMR wallet messages forwarded by [com.techducat.kabukabu.service.I2PKabuService].
+     *
+     * The service relays wallet protocol messages from peers (and from its own wallet event
+     * listeners) to every connected local UI client.  Activities / fragments that participate
+     * in the escrow flow must register here to receive them.
+     *
+     * Message types delivered:
+     *   - wallet_multisig_info  — peer's multisig info string (step 1 of escrow setup)
+     *   - wallet_escrow_ready   — shared escrow address confirmed
+     *   - wallet_partial_tx     — first signer's partial TX blob (step 1 of payment release)
+     *   - wallet_tx_confirmed   — final TX broadcast confirmed (payment or refund)
+     *   - wallet_refund_req     — peer requested a refund
+     */
+    interface WalletMessageHandler {
+        fun onWalletMessage(type: String, payload: JSONObject)
+    }
+
     private val rideRequestListeners  = ConcurrentHashMap<String, RideRequestHandler>()
     private val driverOfferListeners  = ConcurrentHashMap<String, DriverOfferHandler>()
     private val tripEventListeners    = ConcurrentHashMap<String, TripEventHandler>()
     private val offerAcceptListeners  = ConcurrentHashMap<String, OfferAcceptHandler>()
     private val peerStatusListeners   = ConcurrentHashMap<String, PeerStatusHandler>()
     private val i2pStateListeners     = ConcurrentHashMap<String, I2PStateHandler>()
+    private val walletMessageListeners = ConcurrentHashMap<String, WalletMessageHandler>()
 
     fun addRideRequestHandler (key: String, h: RideRequestHandler)  { rideRequestListeners[key] = h }
     fun addDriverOfferHandler (key: String, h: DriverOfferHandler)  { driverOfferListeners[key] = h }
@@ -150,6 +169,7 @@ class I2PKabuClient(private val context: Context) {
     fun addOfferAcceptHandler (key: String, h: OfferAcceptHandler)  { offerAcceptListeners[key] = h }
     fun addPeerStatusHandler  (key: String, h: PeerStatusHandler)   { peerStatusListeners[key] = h }
     fun addI2PStateHandler    (key: String, h: I2PStateHandler)     { i2pStateListeners[key] = h }
+    fun addWalletMessageHandler(key: String, h: WalletMessageHandler) { walletMessageListeners[key] = h }
 
     // ── Connection lifecycle ──────────────────────────────────────────────────
 
@@ -365,6 +385,18 @@ class I2PKabuClient(private val context: Context) {
             "i2p_state" -> {
                 val state = json.optString("state")
                 i2pStateListeners.values.forEach { it.onI2PStateChanged(state) }
+            }
+            // ── XMR wallet messages forwarded from I2PKabuService ─────────────
+            // These originate either from the local service (wallet lifecycle events)
+            // or from the peer device (multisig handshake, partial TX).
+            // They must be relayed to the walletMessageListeners in the Activity layer
+            // so the RideWalletManager / WalletSuite can process them.
+            "wallet_multisig_info",
+            "wallet_escrow_ready",
+            "wallet_partial_tx",
+            "wallet_tx_confirmed",
+            "wallet_refund_req" -> {
+                walletMessageListeners.values.forEach { it.onWalletMessage(type, json) }
             }
             "heartbeat_ack" -> lastHeartbeatOk.set(System.currentTimeMillis())
             "error" -> Log.e(TAG, "Service error: ${json.optString("message")}")

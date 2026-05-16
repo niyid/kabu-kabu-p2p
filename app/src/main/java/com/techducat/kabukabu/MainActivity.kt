@@ -140,6 +140,7 @@ class MainActivity :
         i2pClient.addTripEventHandler   ("main", this)
         i2pClient.addPeerStatusHandler  ("main", this)
         i2pClient.addI2PStateHandler    ("main", this)
+        i2pClient.addWalletMessageHandler("main", walletMessageDispatcher)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         setupLocationCallback()
@@ -395,6 +396,78 @@ class MainActivity :
         )
     }
 
+    // ── XMR wallet — inbound wallet protocol dispatcher ──────────────────────
+
+    /**
+     * Routes wallet protocol messages forwarded by [I2PKabuClient] to the correct
+     * handler on the main thread.
+     *
+     * Message sources:
+     *  - wallet_multisig_info  → driver sent their multisig info; finalize escrow on our side.
+     *  - wallet_escrow_ready   → escrow address confirmed; update UI.
+     *  - wallet_partial_tx     → driver sent partial TX for us to co-sign (rider side only).
+     *  - wallet_tx_confirmed   → payment or refund broadcast confirmed.
+     */
+    private val walletMessageDispatcher = object : I2PKabuClient.WalletMessageHandler {
+        override fun onWalletMessage(type: String, payload: org.json.JSONObject) {
+            // All handling must happen on the main thread.
+            runOnUiThread {
+                when (type) {
+                    "wallet_multisig_info" -> {
+                        // Peer (driver) sent their multisig info → finalise our side of the escrow
+                        val peerInfo    = payload.optString("info", "")
+                        val fareAtomic  = payload.optLong("fare_xmr", 0L)
+                        val isRider     = payload.optBoolean("is_rider", false)
+                        // is_rider flag identifies the SENDER (driver sends is_rider=false)
+                        // Rider device should fund the escrow (fareAtomic > 0);
+                        // driver device receives is_rider=true (sent by rider) → no funding.
+                        val fundAmt = if (isRider) 0L else fareAtomic
+                        if (peerInfo.isNotEmpty()) {
+                            rideWalletManager.finalizeEscrowWithPeer(peerInfo, fundAmt)
+                        }
+                    }
+                    "wallet_escrow_ready" -> {
+                        val escrowAddr = payload.optString("escrow_address", "")
+                        if (escrowAddr.isNotEmpty()) {
+                            tvStatus.text = "Escrow ready — waiting for driver"
+                            Log.i(TAG, "Escrow address confirmed: ${escrowAddr.take(16)}…")
+                        }
+                    }
+                    "wallet_partial_tx" -> {
+                        // Driver sent their partial TX → rider must co-sign and broadcast
+                        val partialTxHex   = payload.optString("partial_tx_hex", "")
+                        val driverAddress  = payload.optString("driver_address", "")
+                        val fareAtomic     = payload.optLong("fare_xmr", currentFareAtomicUnits)
+                        if (partialTxHex.isNotEmpty() && driverAddress.isNotEmpty()) {
+                            Log.i(TAG, "Received partial TX from driver — co-signing")
+                            WalletSuite.getInstance(this@MainActivity).coSignAndBroadcast(
+                                partialTxHex,
+                                driverAddress,
+                                object : WalletSuite.PaymentReleaseCallback {
+                                    override fun onSuccess(txId: String, amountAtomic: Long) {
+                                        runOnUiThread {
+                                            tvStatus.text = "Payment sent ✓"
+                                            walletPaymentListener.onPaymentReleased(txId)
+                                        }
+                                    }
+                                    override fun onError(error: String) {
+                                        runOnUiThread { walletPaymentListener.onPaymentError("cosign", error) }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    "wallet_tx_confirmed" -> {
+                        val txId   = payload.optString("tx_id", "")
+                        val refund = payload.optBoolean("refund", false)
+                        if (refund) walletPaymentListener.onRefundComplete(txId)
+                        else        walletPaymentListener.onPaymentReleased(txId)
+                    }
+                }
+            }
+        }
+    }
+
     // ── XMR wallet — payment listener ────────────────────────────────────────
 
     private val walletPaymentListener = object : RideWalletManager.RidePaymentListener {
@@ -515,12 +588,29 @@ class MainActivity :
                 }
                 TripEventType.TRIP_CANCELLED -> {
                     tvStatus.text = getString(R.string.event_trip_cancelled)
+
+                    // Build the onNeedPeerSignature callback once — reused by both branches.
+                    // The rider is the first signer on a refund: export partial images and send
+                    // them to the driver over I2P (wallet_partial_tx with refund=true).
+                    val onNeedSig: (String) -> Unit = { partialTxHex ->
+                        val msg = JSONObject().apply {
+                            put("type",           "wallet_partial_tx")
+                            put("partial_tx_hex", partialTxHex)
+                            put("driver_address", myXmrAddress)  // refund destination = rider
+                            put("fare_xmr",       currentFareAtomicUnits)
+                            put("ride_id",        currentRideId)
+                            put("refund",         true)           // flag: this is a refund, not a payout
+                        }
+                        i2pClient.sendRawMessage(msg.toString())
+                    }
+
                     // Refund escrow back to rider — guard against address not yet loaded
                     if (myXmrAddress.isNotEmpty()) {
                         rideWalletManager.refundToRider(
-                            riderXmrAddress    = myXmrAddress,
-                            fareAtomicUnits    = currentFareAtomicUnits,
-                            peerSignatureInfos = emptyList()
+                            riderXmrAddress      = myXmrAddress,
+                            fareAtomicUnits      = currentFareAtomicUnits,
+                            peerSignatureInfos   = emptyList(),
+                            onNeedPeerSignature  = onNeedSig
                         )
                     } else {
                         // Address still loading — fetch it then refund
@@ -529,9 +619,10 @@ class MainActivity :
                                 override fun onSuccess(address: String) {
                                     myXmrAddress = address
                                     rideWalletManager.refundToRider(
-                                        riderXmrAddress    = address,
-                                        fareAtomicUnits    = currentFareAtomicUnits,
-                                        peerSignatureInfos = emptyList()
+                                        riderXmrAddress     = address,
+                                        fareAtomicUnits     = currentFareAtomicUnits,
+                                        peerSignatureInfos  = emptyList(),
+                                        onNeedPeerSignature = onNeedSig
                                     )
                                 }
                                 override fun onError(error: String) {

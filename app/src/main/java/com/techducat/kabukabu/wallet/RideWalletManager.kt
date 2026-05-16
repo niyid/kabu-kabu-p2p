@@ -250,33 +250,67 @@ class RideWalletManager(private val context: Context) {
      * Refund the escrowed fare to the rider when a trip is cancelled
      * (before pickup) or a dispute is resolved in the rider's favour.
      *
-     * Both parties must call this (2-of-2).  Share the partial signature
-     * blob with the peer over I2P just like in [onTripCompleted].
+     * ## Two-phase signing (mirrors [onTripCompleted])
      *
-     * @param riderXmrAddress    Rider's main XMR address
-     * @param fareAtomicUnits    Amount to refund
-     * @param peerSignatureInfos Peer's multisig image exports (may be empty)
+     * In a 2-of-2 multisig wallet neither party can broadcast unilaterally.
+     * The flow is:
+     *   1. First signer (rider) calls this with `peerSignatureInfos = emptyList()`.
+     *      The wallet exports its partial signing images and delivers them to
+     *      [onNeedPeerSignature] for relay to the driver over I2P.
+     *   2. Driver receives the blob, sends it back over I2P as `wallet_partial_tx`
+     *      (reusing the existing message type, flag `refund=true`).
+     *   3. Rider receives the driver's images in the `wallet_tx_confirmed` / partial
+     *      response and calls this again with [peerSignatureInfos] populated.
+     *      Now `refundEscrowToRider` can build and commit the TX.
+     *
+     * Callers that do not need the two-phase flow (e.g. already have peer images)
+     * may pass a populated [peerSignatureInfos] to go directly to broadcast.
+     *
+     * @param riderXmrAddress        Rider's main XMR address
+     * @param fareAtomicUnits        Amount to refund (piconero)
+     * @param peerSignatureInfos     Driver's multisig image exports (empty on first call)
+     * @param onNeedPeerSignature    Called when this device is the first signer;
+     *                               relay the returned blob to the driver over I2P
      */
     fun refundToRider(
         riderXmrAddress: String,
         fareAtomicUnits: Long,
-        peerSignatureInfos: List<String>
+        peerSignatureInfos: List<String>,
+        onNeedPeerSignature: ((partialTxHex: String) -> Unit)? = null
     ) {
         Log.i(TAG, "refundToRider: ${WalletSuite.convertAtomicToXmr(fareAtomicUnits)} XMR")
-        walletSuite.refundEscrowToRider(
-            riderXmrAddress,
-            fareAtomicUnits,
-            peerSignatureInfos,
-            object : WalletSuite.PaymentReleaseCallback {
-                override fun onSuccess(txId: String, amountAtomic: Long) {
-                    Log.i(TAG, "✓ Refund broadcast — txId: $txId")
-                    paymentListener?.onRefundComplete(txId)
+
+        if (peerSignatureInfos.isEmpty()) {
+            // First signer — export our partial signing images and relay to the driver.
+            // This is the same approach used in onTripCompleted for the payment direction.
+            walletSuite.exportMultisigImages(object : WalletSuite.ExportMultisigCallback {
+                override fun onSuccess(info: String) {
+                    Log.i(TAG, "Refund: partial signing image exported — relaying to driver for co-sign")
+                    onNeedPeerSignature?.invoke(info)
+                        ?: Log.w(TAG, "refundToRider: no onNeedPeerSignature callback — peer will not co-sign")
                 }
                 override fun onError(error: String) {
-                    Log.e(TAG, "refundToRider error: $error")
-                    paymentListener?.onPaymentError("refund", error)
+                    Log.e(TAG, "refundToRider exportMultisigImages failed: $error")
+                    paymentListener?.onPaymentError("refund_export", error)
                 }
             })
+        } else {
+            // Second signer — peer images available; build TX and broadcast.
+            walletSuite.refundEscrowToRider(
+                riderXmrAddress,
+                fareAtomicUnits,
+                peerSignatureInfos,
+                object : WalletSuite.PaymentReleaseCallback {
+                    override fun onSuccess(txId: String, amountAtomic: Long) {
+                        Log.i(TAG, "✓ Refund broadcast — txId: $txId")
+                        paymentListener?.onRefundComplete(txId)
+                    }
+                    override fun onError(error: String) {
+                        Log.e(TAG, "refundToRider error: $error")
+                        paymentListener?.onPaymentError("refund", error)
+                    }
+                })
+        }
     }
 
     // =========================================================================

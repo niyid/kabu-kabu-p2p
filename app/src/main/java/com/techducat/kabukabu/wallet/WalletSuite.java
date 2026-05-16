@@ -301,7 +301,10 @@ public class WalletSuite {
             Log.e(TAG, "initializeWallet: userId is blank");
             return;
         }
-        if (isInitialized && userId.equals(activeUserId)) {
+        // Guard: skip re-init only when the wallet is actually open and healthy.
+        // If isInitialized is true but wallet is null (e.g. the singleton survived an
+        // Application.onTerminate() that closed the wallet), we must re-open it.
+        if (isInitialized && wallet != null && userId.equals(activeUserId)) {
             Log.d(TAG, "Wallet already initialized for " + userId);
             return;
         }
