@@ -10,6 +10,8 @@ import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -364,7 +366,9 @@ class MainActivity :
      */
     private fun onDriverOfferAccepted(offer: DriverOffer) {
         pendingAcceptOffer      = offer
-        currentFareAtomicUnits  = offer.counterFareXMR ?: 0L
+        // counterFareXMR is in display millicents (ɱ); convert to piconero for WalletSuite.
+        currentFareAtomicUnits  = com.techducat.kabukabu.network.FareEstimator
+            .toAtomicUnits(offer.counterFareXMR ?: 0L)
         currentRideId           = offer.requestId
         // currentDriverXmrAddress is NOT in DriverOffer — it arrives later
         // via the driver's "wallet_multisig_info" message over I2P
@@ -416,12 +420,14 @@ class MainActivity :
                     "wallet_multisig_info" -> {
                         // Peer (driver) sent their multisig info → finalise our side of the escrow
                         val peerInfo    = payload.optString("info", "")
-                        val fareAtomic  = payload.optLong("fare_xmr", 0L)
+                        val fareMillicents = payload.optLong("fare_xmr", 0L)
                         val isRider     = payload.optBoolean("is_rider", false)
                         // is_rider flag identifies the SENDER (driver sends is_rider=false)
                         // Rider device should fund the escrow (fareAtomic > 0);
                         // driver device receives is_rider=true (sent by rider) → no funding.
-                        val fundAmt = if (isRider) 0L else fareAtomic
+                        // fare_xmr in the message is display millicents — convert to piconero.
+                        val fundAmt = if (isRider) 0L
+                            else com.techducat.kabukabu.network.FareEstimator.toAtomicUnits(fareMillicents)
                         if (peerInfo.isNotEmpty()) {
                             rideWalletManager.finalizeEscrowWithPeer(peerInfo, fundAmt)
                         }
@@ -687,6 +693,27 @@ class MainActivity :
                 getString(R.string.status_connected)
             else
                 getString(R.string.status_disconnected)
+        }
+    }
+
+    // ── Options menu ──────────────────────────────────────────────────────────
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_wallet -> {
+                startActivity(Intent(this, WalletActivity::class.java))
+                true
+            }
+            R.id.action_trip_history -> {
+                startActivity(Intent(this, TripHistoryActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 

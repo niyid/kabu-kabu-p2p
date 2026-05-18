@@ -25,6 +25,7 @@
     <string name="offer_rejected">Rider rejected your offer</string>
     <string name="error_already_active">You already have an active trip</string>
 
-    <!-- Open requests list header -->
+    <!-- Online requests list header -->
     <string name="title_open_requests">Open Requests Near You</string>
+    <string name="driver_zone_initial">Zone: —</string>
 </resources>

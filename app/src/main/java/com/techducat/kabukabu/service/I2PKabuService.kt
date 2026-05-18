@@ -341,10 +341,13 @@ class I2PKabuService : LifecycleService() {
                 val role       = json.optString("role", "rider")
                 val now        = System.currentTimeMillis()
                 // Upsert: create the record if it doesn't exist yet (e.g. location_update arrived
-                // before the handshake from broadcastAvailability), otherwise update the geohash.
+                // before the handshake from broadcastAvailability), otherwise update the geohash
+                // and role (role may change if the user switches from rider to driver mid-session).
+                val existingRole = peerRegistry[id]?.role ?: role
+                val effectiveRole = if (role.isNotEmpty()) role else existingRole
                 peerRegistry[id] = peerRegistry[id]
-                    ?.copy(geohash = newGeohash, lastSeen = now)
-                    ?: PeerRecord(id, newGeohash, role, now)
+                    ?.copy(geohash = newGeohash, role = effectiveRole, lastSeen = now)
+                    ?: PeerRecord(id, newGeohash, effectiveRole, now)
                 fanOutToLocalClients(json, excludeSession = session)
                 sendOverI2P(json)
             }
@@ -395,10 +398,10 @@ class I2PKabuService : LifecycleService() {
      * then confirm the escrow address back over I2P.
      */
     private fun handleWalletMultisigInfo(json: JSONObject, session: ClientSession) {
-        val peerInfo   = json.optString("info", "")
-        val fareAtomic = json.optLong("fare_xmr", 0L)
-        val isRider    = json.optBoolean("is_rider", false)
-        val rideId     = json.optString("ride_id", "")
+        val peerInfo        = json.optString("info", "")
+        val fareMillicents  = json.optLong("fare_xmr", 0L)
+        val isRider         = json.optBoolean("is_rider", false)
+        val rideId          = json.optString("ride_id", "")
 
         if (peerInfo.isEmpty()) { Log.w(TAG, "Empty multisig info — ignoring"); return }
         Log.i(TAG, "handleWalletMultisigInfo: rideId=$rideId peerIsRider=$isRider")
@@ -407,10 +410,11 @@ class I2PKabuService : LifecycleService() {
         // `is_rider` flag identifies the SENDER of this message, not this device.
         //
         //  Message from RIDER  → received on DRIVER device: isRider=true  → driver doesn't fund → 0L
-        //  Message from DRIVER → received on RIDER  device: isRider=false → rider funds escrow  → fareAtomic
+        //  Message from DRIVER → received on RIDER  device: isRider=false → rider funds escrow  → farePiconero
         //
-        // The driver echoes the agreed fare_xmr in its message so the rider knows how much to lock.
-        rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else fareAtomic)
+        // fare_xmr in the I2P message is in display millicents (ɱ); convert to piconero for WalletSuite.
+        val farePiconero = com.techducat.kabukabu.network.FareEstimator.toAtomicUnits(fareMillicents)
+        rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else farePiconero)
 
         rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {
             override fun onEscrowReady(escrowAddress: String) {
@@ -491,9 +495,11 @@ class I2PKabuService : LifecycleService() {
      * Peer requested a refund (trip cancelled or dispute).
      */
     private fun handleWalletRefundRequest(json: JSONObject, session: ClientSession) {
-        val riderAddress = json.optString("rider_address", "")
-        val fareAtomic   = json.optLong("fare_xmr", 0L)
-        val rideId       = json.optString("ride_id", "")
+        val riderAddress    = json.optString("rider_address", "")
+        val fareMillicents  = json.optLong("fare_xmr", 0L)
+        val rideId          = json.optString("ride_id", "")
+        // fare_xmr in I2P messages is display millicents (ɱ); convert to piconero for WalletSuite.
+        val farePiconero    = com.techducat.kabukabu.network.FareEstimator.toAtomicUnits(fareMillicents)
 
         if (riderAddress.isEmpty()) { Log.w(TAG, "Empty rider address in refund req"); return }
         Log.i(TAG, "handleWalletRefundRequest: rideId=$rideId")
@@ -516,7 +522,24 @@ class I2PKabuService : LifecycleService() {
             override fun onBalanceCheckResult(s: Boolean, u: String, f: String, sh: String) {}
             override fun onPaymentReleased(txId: String) {}
         })
-        rwm.refundToRider(riderAddress, fareAtomic, emptyList())
+        rwm.refundToRider(
+            riderXmrAddress     = riderAddress,
+            fareAtomicUnits     = farePiconero,
+            peerSignatureInfos  = emptyList(),
+            onNeedPeerSignature = { partialTxHex ->
+                // First-signer path: relay the partial-TX blob to local UI clients so they
+                // can forward it to the peer (driver) over I2P for co-signing.
+                broadcastToLocalClients(JSONObject().apply {
+                    put("type",           MSG_TYPE_WALLET_PARTIAL_TX)
+                    put("partial_tx_hex", partialTxHex)
+                    put("driver_address", riderAddress)   // destination for refund = rider
+                    put("fare_xmr",       fareMillicents) // keep as millicents in the wire message
+                    put("ride_id",        rideId)
+                    put("refund",         true)
+                }.toString())
+                Log.i(TAG, "handleWalletRefundRequest: partial TX relayed to local clients (rideId=$rideId)")
+            }
+        )
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

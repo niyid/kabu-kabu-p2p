@@ -55,8 +55,6 @@
                 android:layout_weight="1"
                 android:textColor="@color/kabu_text_primary"
                 android:textSize="14sp"
-                android:drawableStart="@android:drawable/arrow_up_float"
-                android:drawablePadding="4dp"
                 android:text="Zone GCPU"/>
 
             <TextView

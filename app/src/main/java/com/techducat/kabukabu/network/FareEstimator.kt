@@ -9,20 +9,35 @@ import kotlin.math.*
  * No pricing server is contacted. Fares are computed from:
  *   1. Approximate distance between two GeoHash-5 cells (Haversine formula
  *      applied to the cell centres).
- *   2. A locally-stored rate table of generic market rates (XMR millicents).
+ *   2. A locally-stored rate table of generic market rates.
  *   3. A time-of-day multiplier (peak hours).
+ *
+ * ## Fare units
+ *
+ * The values produced by [estimate] are in **display millicents** (abbreviated
+ * as ɱ in the UI), where 1 XMR = 100 000 ɱ.  These are NOT Monero atomic
+ * units (piconero, where 1 XMR = 1 000 000 000 000 pico).
+ *
+ * **IMPORTANT**: Before passing a fare estimate to any [WalletSuite] method
+ * (which expects piconero), convert with:
+ *
+ *   val piconero = fareMillicents * 10_000_000L   // 1 ɱ = 10^7 piconero
+ *
+ * The [RideRequest.fareEstimateXMR], [DriverOffer.counterFareXMR], and the
+ * `fare_xmr` I2P message fields all carry **millicents** as produced here.
+ * [WalletSuite.convertAtomicToXmr] / [WalletSuite.checkBalanceForRide] work
+ * in piconero — always convert at the wallet boundary.
  *
  * Privacy: all inputs and outputs stay on-device. The fare estimate
  * carried in [RideRequest.fareEstimateXMR] is computed here before
- * being broadcast, so the server (which doesn't exist) never needs
- * to know how it was derived.
+ * being broadcast, so no server ever learns how it was derived.
  *
- * Rate table (XMR millicents — 1 XMR = 100 000 mc; adjust via remote config):
- *   Base flag-fall:     ɱ0.0050  (500 mc)
- *   Per km (taxi):      ɱ0.0015  (150 mc) / km
- *   Per km (courier):   ɱ0.0012  (120 mc) / km  (lighter load, smaller vehicle)
+ * Rate table (ɱ = display millicents; 1 XMR = 100 000 ɱ):
+ *   Base flag-fall:     ɱ0.0050  (500 ɱ)
+ *   Per km (taxi):      ɱ0.0015  (150 ɱ) / km
+ *   Per km (courier):   ɱ0.0012  (120 ɱ) / km
  *   Peak multiplier:    1.5× (07:00–09:00, 16:00–20:00 WAT)
- *   Minimum fare:       ɱ0.0080  (800 mc)
+ *   Minimum fare:       ɱ0.0080  (800 ɱ)
  */
 object FareEstimator {
 
@@ -90,6 +105,20 @@ object FareEstimator {
      */
     fun formatXmr(amountXmr: Long): String =
         "ɱ%,d".format(amountXmr)
+
+    /**
+     * Convert a display-millicent fare amount to Monero piconero (atomic units)
+     * for use with [WalletSuite] JNI methods.
+     *
+     *   1 ɱ (display millicent) = 10^7 piconero
+     *   1 XMR                   = 100 000 ɱ = 10^12 piconero
+     */
+    fun toAtomicUnits(fareMillicents: Long): Long = fareMillicents * 10_000_000L
+
+    /**
+     * Convert Monero piconero (atomic units) back to display millicents.
+     */
+    fun fromAtomicUnits(piconero: Long): Long = piconero / 10_000_000L
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

@@ -57,7 +57,8 @@ class DriverActivity :
     AppCompatActivity(),
     I2PKabuClient.RideRequestHandler,
     I2PKabuClient.OfferAcceptHandler,
-    I2PKabuClient.PeerStatusHandler {
+    I2PKabuClient.PeerStatusHandler,
+    I2PKabuClient.I2PStateHandler {
 
     companion object {
         private const val TAG                   = "KabuDriverActivity"
@@ -128,6 +129,7 @@ class DriverActivity :
         i2pClient.addRideRequestHandler("driver", this)
         i2pClient.addOfferAcceptHandler ("driver", this)
         i2pClient.addPeerStatusHandler  ("driver", this)
+        i2pClient.addI2PStateHandler    ("driver", this)
         i2pClient.addWalletMessageHandler("driver", driverWalletMessageDispatcher)
 
         rideWalletManager = RideWalletManager(this)
@@ -518,6 +520,29 @@ class DriverActivity :
                 getString(R.string.driver_status_online)
             else
                 getString(R.string.status_disconnected)
+        }
+    }
+
+    // ── I2PStateHandler ───────────────────────────────────────────────────────
+
+    override fun onI2PStateChanged(state: String) {
+        runOnUiThread {
+            when (state) {
+                com.techducat.kabukabu.service.I2PKabuService.I2P_STATE_BOOTSTRAPPING,
+                com.techducat.kabukabu.service.I2PKabuService.I2P_STATE_BUILDING_TUNNELS -> {
+                    tvDriverStatus.text = getString(R.string.i2p_status_bootstrapping)
+                }
+                com.techducat.kabukabu.service.I2PKabuService.I2P_STATE_READY -> {
+                    // Restore online/offline label once I2P is ready
+                    tvDriverStatus.text = if (isOnline)
+                        getString(R.string.driver_status_online)
+                    else
+                        getString(R.string.driver_status_offline)
+                }
+                com.techducat.kabukabu.service.I2PKabuService.I2P_STATE_ERROR -> {
+                    tvDriverStatus.text = getString(R.string.i2p_status_error)
+                }
+            }
         }
     }
 

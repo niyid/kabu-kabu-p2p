@@ -22,7 +22,7 @@ data class RideRequest(
     val pickupGeohash:    String,          // GeoHash precision 5
     val dropoffGeohash:   String,          // GeoHash precision 5
     val serviceType:      ServiceType,     // TAXI | COURIER
-    val fareEstimateXMR:  Long,            // XMR millicents, computed locally
+    val fareEstimateXMR:  Long,            // display millicents (ɱ); convert to piconero before WalletSuite calls
     val noteForDriver:    String,          // Optional free text (package desc, etc.)
     val timestamp:        Long,            // Unix millis (sender clock)
     val ttlMs:            Long = 10 * 60 * 1000L,  // Expire after 10 min
@@ -47,7 +47,7 @@ data class DriverOffer(
     val etaMinutes:       Int,             // Estimated minutes to pickup geohash
     val vehicleType:      String,          // "Keke", "Car", "Bike", "Truck" etc.
     val ratingScore:      Float,           // 0–5, computed from local peer reviews
-    val counterFareXMR:   Long?,           // null = accept rider's estimate (XMR mc)
+    val counterFareXMR:   Long?,           // null = accept rider's estimate (display millicents ɱ; convert before WalletSuite)
     val timestamp:        Long
 )
 

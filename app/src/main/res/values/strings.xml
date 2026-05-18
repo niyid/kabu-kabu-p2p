@@ -70,4 +70,8 @@
     <string name="btn_make_offer">Make Offer</string>
     <string name="title_offers">Incoming Offers</string>
     <string name="hint_note">Describe package or destination area…</string>
+
+    <!-- Options menu -->
+    <string name="menu_wallet">Wallet (XMR)</string>
+    <string name="menu_trip_history">Trip History</string>
 </resources>

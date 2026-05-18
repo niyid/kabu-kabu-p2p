@@ -105,6 +105,7 @@
             android:name=".wallet.WalletActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.KabuKabu"/>
     </application>
 

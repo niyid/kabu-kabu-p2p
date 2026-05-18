@@ -99,10 +99,13 @@ class RideWalletManager(private val context: Context) {
      * @param offer  The [DriverOffer] the rider wants to accept
      */
     fun checkBalanceBeforeAccepting(offer: DriverOffer) {
-        val fare = offer.counterFareXMR ?: 0L
-        Log.i(TAG, "checkBalanceBeforeAccepting: fare=${WalletSuite.convertAtomicToXmr(fare)} XMR")
+        val fareMillicents = offer.counterFareXMR ?: 0L
+        // WalletSuite.checkBalanceForRide expects Monero piconero (atomic units).
+        // fareMillicents is in display millicents (ɱ); convert before calling JNI.
+        val farePiconero = com.techducat.kabukabu.network.FareEstimator.toAtomicUnits(fareMillicents)
+        Log.i(TAG, "checkBalanceBeforeAccepting: fare=${WalletSuite.convertAtomicToXmr(farePiconero)} XMR")
 
-        walletSuite.checkBalanceForRide(fare, object : WalletSuite.BalanceCheckCallback {
+        walletSuite.checkBalanceForRide(farePiconero, object : WalletSuite.BalanceCheckCallback {
             override fun onResult(
                 sufficient: Boolean,
                 unlockedXmr: String,
