@@ -109,7 +109,8 @@ class EmbeddedI2PRouter private constructor(
 
         // Reseed servers — ordered by observed reliability (mirrors verzus-p2p ordering).
         // reseed.i2p-projekt.de is kept last: it timed out in production logs (ETIMEDOUT).
-        private const val RESEED_URLS =
+        // These are the FALLBACK seeds used when the live fetch (below) fails.
+        private const val FALLBACK_RESEED_URLS =
             "https://reseed-fr.i2pd.xyz/," +
             "https://reseed-pl.i2pd.xyz/," +
             "https://reseed.memcpy.io/," +
@@ -118,6 +119,58 @@ class EmbeddedI2PRouter private constructor(
             "https://i2p.mooo.com/netDb/," +
             "https://reseed.onion.im/," +
             "https://reseed.i2p-projekt.de/"
+
+        /**
+         * URL of the I2P project's authoritative reseed-server list.
+         * Returns one HTTPS reseed URL per line.  Fetched at startup so the
+         * embedded router automatically discovers new servers or drops dead ones
+         * without requiring an app update.
+         */
+        private const val RESEED_LIST_URL =
+            "https://reseed.i2p2.de/reseed-servers.txt"
+
+        /**
+         * Fetch the live reseed-server list from the I2P project, merge with
+         * [FALLBACK_RESEED_URLS], and return as a comma-separated string suitable
+         * for the `i2p.reseedURL` system property.
+         *
+         * Falls back to [FALLBACK_RESEED_URLS] silently on any network error —
+         * the router will still start, just without newly-added servers.
+         *
+         * Must NOT be called on the main thread.
+         */
+        fun fetchActiveReseedUrls(): String {
+            return try {
+                val url = java.net.URL(RESEED_LIST_URL)
+                val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 8_000
+                    readTimeout    = 8_000
+                    requestMethod  = "GET"
+                }
+                val fetched: List<String> = conn.inputStream.bufferedReader().use { reader ->
+                    reader.readLines()
+                        .map { it.trim() }
+                        .filter { it.startsWith("https://") }
+                }
+                conn.disconnect()
+
+                if (fetched.isEmpty()) {
+                    android.util.Log.w(TAG, "Reseed list fetch returned no HTTPS URLs — using fallback")
+                    return FALLBACK_RESEED_URLS
+                }
+
+                // Merge: live list first (newer servers), then any fallback URLs not
+                // already present (so well-known reliable servers are always included).
+                val fallbackList = FALLBACK_RESEED_URLS.split(",").map { it.trim() }
+                val merged = (fetched + fallbackList).distinct()
+                val result = merged.joinToString(",")
+                android.util.Log.i(TAG, "Reseed URLs updated: ${fetched.size} live + fallback = ${merged.size} total")
+                result
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Could not fetch live reseed list (${e.message}) — using hardcoded fallback")
+                FALLBACK_RESEED_URLS
+            }
+        }
 
         @Volatile private var _instance: EmbeddedI2PRouter? = null
 
@@ -451,9 +504,10 @@ class EmbeddedI2PRouter private constructor(
 
         // CRITICAL: reseedURL must be a System property — it is shadowed in router.config
         // by the Router's internal _overrideProps before System.getProperty() fallback.
-        System.setProperty("i2p.reseedURL", RESEED_URLS)
+        val activeReseedUrls = fetchActiveReseedUrls()
+        System.setProperty("i2p.reseedURL", activeReseedUrls)
         Log.i(TAG, "Set i2p.dir.base = ${configDir.absolutePath}")
-        Log.i(TAG, "Set i2p.reseedURL = ${RESEED_URLS.take(60)}…")
+        Log.i(TAG, "Set i2p.reseedURL = ${activeReseedUrls.take(60)}…")
 
         try {
             val routerClass = Class.forName("net.i2p.router.Router")
