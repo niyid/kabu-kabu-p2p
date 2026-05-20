@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Assisted Software Development — Part II: The Thot AI Agent</title>
+
+<!-- SEO -->
+<meta name="description" content="How AI-assisted development shaped Thot — an Android OS-level AI assistant that draws a floating panel above every app, routes to five LLM backends, and reads screen context via the Accessibility API.">
+<meta name="author" content="niyid">
+<meta name="keywords" content="AI, Android, LLM, accessibility, overlay, llama.cpp, MediaPipe, Anthropic, OpenAI, Kotlin, on-device inference">
+
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="AI-Assisted Software Development — Part II: The Thot AI Agent">
+<meta property="og:description" content="Building an OS-level Android AI assistant that lives above every app — a technical deep-dive into Accessibility API, WindowManager overlays, and five-backend LLM routing.">
+<meta property="og:site_name" content="Techducat">
+<meta property="article:author" content="https://github.com/niyid">
+
+<!-- Twitter/X Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI-Assisted Software Development — Part II: The Thot AI Agent">
+<meta name="twitter:description" content="One floating button. Five inference backends. Zero app switches. A technical deep-dive into AI-assisted construction of an Android OS-level assistant.">
+
+<!-- Canonical -->
+<link rel="canonical" href="https://niyid.github.io/thot-android-ai/thot-ai-agent-part2.html">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg:           #06080d;
+    --surface:      #0c1018;
+    --panel:        #101520;
+    --border:       #1c2433;
+    --border-hi:    #2a3a52;
+    --emerald:      #10b981;
+    --emerald-dim:  rgba(16,185,129,0.15);
+    --amber:        #f59e0b;
+    --amber-dim:    rgba(245,158,11,0.12);
+    --red:          #ef4444;
+    --red-dim:      rgba(239,68,68,0.12);
+    --blue:         #60a5fa;
+    --blue-dim:     rgba(96,165,250,0.12);
+    --violet:       #a78bfa;
+    --text:         #e2e8f0;
+    --muted:        #64748b;
+    --muted-hi:     #94a3b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.75;
+    overflow-x: hidden;
+  }
+
+  /* ─── NOISE OVERLAY ─────────────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* grid lines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(16,185,129,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16,185,129,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────────────────────────── */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  /* ─── HERO ───────────────────────────────────────────────────── */
+  .hero {
+    padding: 80px 0 64px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 64px;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    margin-bottom: 28px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: var(--emerald);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(36px, 6vw, 68px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 28px;
+  }
+
+  h1 .accent { color: var(--emerald); }
+  h1 .italic { font-style: italic; }
+
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+  .hero-meta .sep { color: var(--border-hi); }
+
+  .hero-lead {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--muted-hi);
+    line-height: 1.7;
+    max-width: 680px;
+    border-left: 3px solid var(--emerald);
+    padding-left: 20px;
+  }
+
+  /* ─── SECTION STRUCTURE ──────────────────────────────────────── */
+  section { margin-bottom: 72px; }
+
+  .section-kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-kicker::after {
+    content: '';
+    display: block;
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(24px, 3.5vw, 36px);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin-bottom: 24px;
+  }
+
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    margin-top: 32px;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 18px; color: var(--muted-hi); }
+  p:last-child { margin-bottom: 0; }
+
+  strong { color: var(--text); font-weight: 500; }
+  em { font-style: italic; }
+
+  a { color: var(--emerald); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ─── PULL QUOTE ─────────────────────────────────────────────── */
+  .pull-quote {
+    background: var(--emerald-dim);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-left: 4px solid var(--emerald);
+    border-radius: 0 8px 8px 0;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+
+  .pull-quote p {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  .pull-quote cite {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--emerald);
+    text-transform: uppercase;
+    display: block;
+    font-style: normal;
+    margin-top: 10px;
+  }
+
+  /* ─── CODE SNIPPET ───────────────────────────────────────────── */
+  .code-block {
+    background: #070a0f;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 28px 0;
+    font-size: 13px;
+  }
+
+  .code-header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .code-header span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .code-header .lang {
+    color: var(--emerald);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .code-body {
+    padding: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    font-size: 12.5px;
+    color: #cdd6f4;
+  }
+
+  .kw   { color: #c792ea; }
+  .fn   { color: #82aaff; }
+  .str  { color: #c3e88d; }
+  .num  { color: #f78c6c; }
+  .cm   { color: #546e7a; font-style: italic; }
+  .ty   { color: #ffcb6b; }
+  .prop { color: var(--emerald); }
+
+  /* inline code */
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--emerald);
+  }
+
+  /* ─── ASCII DIAGRAM ──────────────────────────────────────────── */
+  .diagram-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 32px 0;
+    position: relative;
+  }
+
+  .diagram-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--emerald), var(--violet));
+  }
+
+  .diagram-body {
+    padding: 28px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-x: auto;
+    white-space: pre;
+    color: #a6e3a1;
+  }
+
+  .diagram-caption {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 10px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* ─── CALLOUT BOXES ──────────────────────────────────────────── */
+  .callout {
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 24px 0;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .callout-warn {
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+
+  .callout-info {
+    background: var(--blue-dim);
+    border: 1px solid rgba(96,165,250,0.25);
+  }
+
+  .callout-good {
+    background: var(--emerald-dim);
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+
+  .callout-risk {
+    background: var(--red-dim);
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+
+  .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body p { font-size: 13.5px; margin: 0; line-height: 1.6; }
+  .callout-body strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+  /* ─── COMPARISON / DATA TABLES ───────────────────────────────── */
+  .compare-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 28px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .compare-header {
+    display: grid;
+    background: var(--panel);
+    border-bottom: 2px solid var(--border-hi);
+  }
+
+  .compare-header-cell {
+    padding: 12px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+  }
+
+  .compare-header-cell + .compare-header-cell { border-left: 1px solid var(--border); }
+
+  .compare-row {
+    display: grid;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row:hover { background: rgba(255,255,255,0.018); }
+
+  .compare-cell {
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted-hi);
+  }
+
+  .compare-cell + .compare-cell { border-left: 1px solid var(--border); }
+
+  .compare-cell.dim-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .compare-cell.good { color: #34d399; }
+  .compare-cell.warn { color: var(--amber); }
+  .compare-cell.bad  { color: #f87171; }
+
+  /* Specific column counts */
+  .cols-2 .compare-header,
+  .cols-2 .compare-row { grid-template-columns: 180px 1fr; }
+
+  .cols-3 .compare-header,
+  .cols-3 .compare-row { grid-template-columns: 160px 1fr 1fr; }
+
+  .cols-4 .compare-header,
+  .cols-4 .compare-row { grid-template-columns: 160px 1fr 1fr 1fr; }
+
+  .cols-5 .compare-header,
+  .cols-5 .compare-row { grid-template-columns: 120px 1fr 1fr 90px 90px; }
+
+  /* ─── TECH STACK PILLS ───────────────────────────────────────── */
+  .tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+  }
+
+  .tech-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted-hi);
+    letter-spacing: 0.05em;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .tech-pill:hover { border-color: var(--border-hi); color: var(--text); }
+  .tech-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green  { background: var(--emerald); }
+  .dot-amber  { background: var(--amber); }
+  .dot-blue   { background: var(--blue); }
+  .dot-violet { background: var(--violet); }
+
+  /* ─── SECTION DIVIDER ────────────────────────────────────────── */
+  .section-rule {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 0 56px;
+  }
+
+  /* ─── FOOTER ─────────────────────────────────────────────────── */
+  .article-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .footer-left p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin: 0 0 6px;
+  }
+
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--emerald-dim);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--emerald);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: background 0.2s;
+  }
+
+  .footer-link:hover { background: rgba(16,185,129,0.22); text-decoration: none; }
+
+  .footer-ref-list {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 2;
+    margin-top: 4px;
+  }
+
+  .footer-ref-list a { color: var(--muted-hi); text-decoration: none; }
+  .footer-ref-list a:hover { color: var(--emerald); }
+
+  /* ─── ANIMATIONS ─────────────────────────────────────────────── */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero { animation: fadeSlideUp 0.7s ease both; }
+  section { animation: fadeSlideUp 0.6s ease both; }
+  section:nth-child(2)  { animation-delay: 0.1s; }
+  section:nth-child(3)  { animation-delay: 0.15s; }
+  section:nth-child(4)  { animation-delay: 0.2s; }
+  section:nth-child(5)  { animation-delay: 0.25s; }
+  section:nth-child(6)  { animation-delay: 0.3s; }
+  section:nth-child(7)  { animation-delay: 0.35s; }
+  section:nth-child(8)  { animation-delay: 0.4s; }
+  section:nth-child(9)  { animation-delay: 0.45s; }
+  section:nth-child(10) { animation-delay: 0.5s; }
+
+  @media (max-width: 600px) {
+    .container { padding: 0 16px 64px; }
+    .hero { padding: 48px 0 40px; }
+    .cols-4 .compare-header,
+    .cols-4 .compare-row { grid-template-columns: 1fr 1fr; }
+    .cols-5 .compare-header,
+    .cols-5 .compare-row { grid-template-columns: 1fr 1fr; }
+    .cols-5 .compare-header-cell:nth-child(1),
+    .cols-5 .compare-cell:nth-child(1) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══ HERO ═══ -->
+  <header class="hero">
+    <div class="hero-eyebrow">Case Study · AI Engineering · Android Systems</div>
+
+    <h1>
+      <span class="italic">AI-Assisted</span><br>
+      Software Development<br>
+      <span class="accent">Part II: The Thot</span><br>
+      AI Agent
+    </h1>
+
+    <div class="hero-meta">
+      <span>📅 June 2026</span>
+      <span class="sep">·</span>
+      <span>✍ Oyeniyi Dada</span>
+      <span class="sep">·</span>
+      <span>📱 Android · Kotlin</span>
+      <span class="sep">·</span>
+      <span>⏱ 14 min read</span>
+    </div>
+
+    <p class="hero-lead">
+      Building an OS-level Android AI assistant that draws a floating panel above every app,
+      reads whatever is on screen, and routes to five inference backends — from GPT-4o in the
+      cloud to llama.cpp on-device. AI assistance shaped every layer of the process.
+    </p>
+  </header>
+
+  <!-- ═══ INTRO ═══ -->
+  <section>
+    <p>
+      In <a href="https://oyeniyidada.substack.com/p/ai-assisted-software-development">Part I</a>
+      of this series, we dissected the XMRWallet codebase — examining how AI-assisted refactoring
+      transforms a security-critical C++ JNI bridge, and what the niyid fork's systematic hardening
+      reveals about working with AI tools in high-stakes software. That was a story about analysis:
+      reading code, spotting patterns, understanding what changed and why.
+    </p>
+    <p>
+      This part is a story about <em>construction</em>. Thot is an Android application that draws
+      a floating AI assistant over every app on the device. It reads whatever is visible on screen
+      and puts a capable language model one tap away — while the user is in Gmail, WhatsApp, a
+      banking app, or anywhere else. Building it required threading together Android's Accessibility
+      API, the WindowManager overlay system, multiple LLM backends, and a clean architecture that
+      keeps all of it testable and extensible. AI assistance shaped every layer of that process.
+    </p>
+
+    <div class="tech-stack">
+      <span class="tech-pill"><span class="dot dot-blue"></span>Kotlin</span>
+      <span class="tech-pill"><span class="dot dot-green"></span>Accessibility API</span>
+      <span class="tech-pill"><span class="dot dot-violet"></span>WindowManager Overlay</span>
+      <span class="tech-pill"><span class="dot dot-amber"></span>llama.cpp NDK</span>
+      <span class="tech-pill"><span class="dot dot-blue"></span>MediaPipe / Gemma</span>
+      <span class="tech-pill"><span class="dot dot-green"></span>Anthropic · OpenAI</span>
+    </div>
+  </section>
+
+  <!-- ═══ §01 ═══ -->
+  <section>
+    <div class="section-kicker">§ 01</div>
+    <h2>What Thot Is — and Why It Is Hard to Build</h2>
+
+    <p>
+      The name Thot comes from the ancient Egyptian god of knowledge, writing, and wisdom — an
+      appropriate patron for software that sits at the intersection of everything a user sees and
+      thinks. The application's ambition is deceptively simple: place an AI assistant <strong>inside
+      the Android operating system</strong>, not inside any single app.
+    </p>
+
+    <p>
+      That architectural choice — OS-level rather than app-level — is where the difficulty lives.
+      A traditional AI chatbot runs in its own activity, with its own window, its own context.
+      The user switches to it when they need it. Thot inverts this: it goes where the user
+      already is, reads what is already on screen, and responds in place. The user never leaves
+      their current context.
+    </p>
+
+    <p>
+      Implementing this requires three Android capabilities that rarely appear together in the
+      same codebase:
+    </p>
+
+    <p>
+      <strong>The Accessibility API</strong> — designed for assistive technology, it grants
+      read access to the view hierarchy of any app on the device. Thot uses it to extract
+      the text visible on screen at any moment.
+    </p>
+
+    <p>
+      <strong>The WindowManager overlay system</strong> — the <code>TYPE_APPLICATION_OVERLAY</code>
+      window type lets a service draw views above every other app. Thot uses it to render a
+      draggable floating button and a response panel that appear over whatever the user is doing.
+    </p>
+
+    <p>
+      <strong>A multi-backend LLM routing layer</strong> — the user may be online or offline,
+      on a fast device or a budget phone. Thot supports five inference backends: a cloud call to
+      OpenAI, a cloud call to Anthropic, on-device inference via Google's MediaPipe and Gemma
+      models, on-device inference via llama.cpp with any GGUF model, and a local rule-based
+      fallback. The routing is seamless; the user picks a backend in settings and forgets about it.
+    </p>
+
+    <div class="diagram-block">
+      <div class="diagram-body">┌─────────────────────────────────────────────────────────────┐
+│                        Any Android App                      │
+│         (Gmail · WhatsApp · Bank · Browser · …)            │
+└──────────────────────┬──────────────────────────────────────┘
+                       │  AccessibilityEvent (text, package)
+                       ▼
+         ┌─────────────────────────────┐
+         │  ThotAccessibilityService   │
+         │  • extractText() [depth≤12] │
+         │  • MAX_CHARS 3,000          │
+         │  • @Volatile latestContext  │
+         └──────────────┬──────────────┘
+                        │ starts
+                        ▼
+         ┌─────────────────────────────┐
+         │     ThotOverlayService      │
+         │  • Foreground service       │
+         │  • FAB (draggable, snapping)│
+         │  • Action panel (overlay)   │
+         └──────────────┬──────────────┘
+                        │ ThotTask{prompt, screenCtx, provider}
+                        ▼
+         ┌─────────────────────────────┐
+         │      ThotCoreProvider       │  ← routes by ProviderType
+         └──┬─────┬──────┬──────┬─────┘
+            │     │      │      │
+      LOCAL │  OPENAI  ANTHROPIC│  MEDIAPIPE / LLAMACPP
+            │     │      │      │
+            ▼     ▼      ▼      ▼
+         rule  OkHttp  OkHttp  JNI / native inference
+         based  GPT-4o  Haiku   (Gemma · Llama · Mistral)
+                                        │
+                        ◄───────────────┘
+                    callback → main thread → overlay panel</div>
+      <div class="diagram-caption">▲ Full system architecture — one view, five provider paths</div>
+    </div>
+
+    <p>
+      The architecture diagram above is the whole system in one view. Each layer has a single,
+      well-named responsibility. That clarity did not arrive by accident — it was the product of
+      deliberate design conversation with an AI assistant that pushed back on early drafts that
+      conflated the overlay management with the LLM routing.
+    </p>
+  </section>
+
+  <!-- ═══ §02 ═══ -->
+  <section>
+    <div class="section-kicker">§ 02</div>
+    <h2>The AccessibilityService — Reading the World</h2>
+
+    <p>
+      <code>ThotAccessibilityService</code> is where Thot's OS integration begins. It listens for
+      two event types across all applications: <code>TYPE_WINDOW_STATE_CHANGED</code> and
+      <code>TYPE_WINDOW_CONTENT_CHANGED</code>. Every time the user navigates to a new screen or
+      the content of the current screen updates, the service walks the view hierarchy from the
+      root and collects all visible text.
+    </p>
+
+    <h3>The text extraction strategy</h3>
+
+    <p>
+      The extraction logic is recursive with two hard limits: a depth cap of 12 levels
+      (deep enough to reach text in most apps, shallow enough to avoid runaway traversal)
+      and a character cap of 3,000 (enough content to give an LLM meaningful context,
+      small enough to keep prompt costs reasonable).
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ThotAccessibilityService.kt — extractText()</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">private fun</span> <span class="fn">extractText</span>(node: <span class="ty">AccessibilityNodeInfo</span>, depth: <span class="ty">Int</span> = <span class="num">0</span>): <span class="ty">String</span> {
+    <span class="kw">if</span> (depth > <span class="prop">MAX_DEPTH</span>) <span class="kw">return</span> <span class="str">""</span>          <span class="cm">// depth cap</span>
+    <span class="kw">val</span> sb = <span class="fn">StringBuilder</span>()
+
+    <span class="kw">val</span> text        = node.text?.<span class="fn">toString</span>()
+    <span class="kw">val</span> contentDesc = node.contentDescription?.<span class="fn">toString</span>()
+
+    <span class="kw">if</span> (!text.<span class="fn">isNullOrBlank</span>()) sb.<span class="fn">append</span>(text).<span class="fn">append</span>(<span class="str">"\n"</span>)
+    <span class="kw">else if</span> (!contentDesc.<span class="fn">isNullOrBlank</span>()) sb.<span class="fn">append</span>(contentDesc).<span class="fn">append</span>(<span class="str">"\n"</span>)
+
+    <span class="kw">for</span> (i <span class="kw">in</span> <span class="num">0</span> until node.childCount) {
+        <span class="kw">val</span> child = node.<span class="fn">getChild</span>(i) ?: <span class="kw">continue</span>
+        sb.<span class="fn">append</span>(<span class="fn">extractText</span>(child, depth + <span class="num">1</span>))
+        <span class="kw">if</span> (sb.length > <span class="prop">MAX_CHARS</span>) <span class="kw">break</span>      <span class="cm">// early exit — avoid wasted traversal</span>
+    }
+
+    <span class="kw">return</span> sb.<span class="fn">toString</span>().<span class="fn">take</span>(<span class="prop">MAX_CHARS</span>)
+}</div>
+    </div>
+
+    <p>
+      The early exit on <code>sb.length &gt; MAX_CHARS</code> inside the loop is notable.
+      A naive implementation would build the entire string and then truncate it — wasting
+      traversal time on nodes whose text will be discarded. The early exit was a specific
+      AI suggestion during review, identified as a latent performance issue in the original draft.
+    </p>
+
+    <h3>Thread safety via @Volatile</h3>
+
+    <p>
+      The captured screen context is stored in a companion object as a <code>@Volatile</code>
+      field. The overlay service and the accessibility service run on different threads —
+      the accessibility service on the Android main thread, the overlay service potentially
+      on a coroutine dispatcher. <code>@Volatile</code> ensures writes are immediately visible
+      to reads without requiring a mutex for this single-writer, multiple-reader scenario.
+    </p>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>Design Note: self-exclusion guard</strong>
+        <p>The service explicitly filters out its own package name (<code>com.techducat.thot</code>)
+        from context capture. Without this guard, Thot would attempt to read and summarise its own
+        settings screen — a recursive absurdity that produces useless prompts and wastes API calls.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ §03 ═══ -->
+  <section>
+    <div class="section-kicker">§ 03</div>
+    <h2>The Overlay System — Drawing Above Everything</h2>
+
+    <p>
+      <code>ThotOverlayService</code> is a foreground service that manages two
+      <code>WindowManager</code> views: a floating action button and an action panel.
+      This is the part of the codebase most directly shaped by Android's historical
+      technical constraints, and the part where AI assistance was most valuable for
+      navigating subtle timing and threading requirements.
+    </p>
+
+    <h3>The foreground service requirement</h3>
+
+    <p>
+      On Android 8 and above, a background service that draws overlays must be elevated to a
+      foreground service — it must show a persistent notification to signal to the user (and to
+      the OS) that it is intentionally active. Without this, the OS may kill the service to reclaim
+      memory, causing the overlay to vanish unexpectedly. The notification is kept at minimum
+      priority so it appears at the bottom of the shade without demanding attention.
+    </p>
+
+    <h3>The vsync timing problem</h3>
+
+    <p>
+      One of the more subtle issues that arose during development: calling
+      <code>WindowManager.addView()</code> synchronously inside <code>onCreate()</code>
+      produces intermittent "Already have a pending vsync event" warnings. The overlay
+      occasionally failed to render on the first draw. The fix is to post the
+      <code>addFab()</code> call to the main handler, allowing the current frame to commit
+      before the new view is added.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ThotOverlayService.kt — vsync-safe FAB init</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">override fun</span> <span class="fn">onCreate</span>() {
+    <span class="kw">super</span>.<span class="fn">onCreate</span>()
+    <span class="cm">// ...</span>
+    <span class="cm">// Post to run after the current frame is committed —</span>
+    <span class="cm">// avoids "pending vsync" warnings from WindowManager.</span>
+    <span class="fn">Handler</span>(<span class="fn">Looper</span>.<span class="fn">getMainLooper</span>()).<span class="fn">post</span> { <span class="fn">addFab</span>() }
+}</div>
+    </div>
+
+    <p>
+      This is the kind of fix that is difficult to find by reading documentation. The vsync
+      warning is easy to dismiss as noise; the rendering failure is intermittent enough to miss
+      in casual testing. An AI assistant, having encountered this pattern across many Android
+      codebases, flagged it during the code review pass and produced the fix in the same response.
+    </p>
+
+    <h3>The keyboard focus problem</h3>
+
+    <p>
+      Overlay windows default to <code>FLAG_NOT_FOCUSABLE</code> — they do not intercept touch
+      events intended for the underlying app. This is correct for the FAB, which should not steal
+      focus from the user's app. But when the user taps the custom task text field in the panel,
+      the soft keyboard must appear — which requires removing <code>FLAG_NOT_FOCUSABLE</code>
+      from the panel's <code>WindowManager.LayoutParams</code> at that moment, and restoring it
+      when the keyboard is dismissed.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ThotOverlayService.kt — keyboard focus toggle</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">private fun</span> <span class="fn">allowKeyboard</span>() {
+    <span class="kw">val</span> pp = panelParams ?: <span class="kw">return</span>
+    pp.flags = pp.flags <span class="kw">and</span> <span class="ty">WindowManager</span>.<span class="ty">LayoutParams</span>.<span class="prop">FLAG_NOT_FOCUSABLE</span>.<span class="fn">inv</span>()
+    <span class="kw">try</span> { windowManager.<span class="fn">updateViewLayout</span>(panelView, pp) } <span class="kw">catch</span> (_: <span class="ty">Exception</span>) {}
+}
+
+<span class="kw">private fun</span> <span class="fn">denyKeyboard</span>() {
+    <span class="kw">val</span> pp = panelParams ?: <span class="kw">return</span>
+    pp.flags = pp.flags <span class="kw">or</span> <span class="ty">WindowManager</span>.<span class="ty">LayoutParams</span>.<span class="prop">FLAG_NOT_FOCUSABLE</span>
+    <span class="kw">try</span> { windowManager.<span class="fn">updateViewLayout</span>(panelView, pp) } <span class="kw">catch</span> (_: <span class="ty">Exception</span>) {}
+}</div>
+    </div>
+
+    <p>
+      The bitwise flag manipulation — <code>.inv()</code> to clear a specific flag — is idiomatic
+      Android but easy to get wrong. The AI draft on first attempt used a direct assignment that
+      overwrote all flags rather than toggling only the focusability bit, which would have broken
+      the overlay's touch-passthrough behaviour. The corrected pattern above was produced after
+      the error was explained.
+    </p>
+
+    <h3>The FAB edge-snapping behaviour</h3>
+
+    <p>
+      The floating button snaps to the left or right edge of the screen when the user lifts their
+      finger after dragging. The snap decision is based on whether the button's centre position is
+      left or right of the screen midpoint. The snap position is persisted to
+      <code>SharedPreferences</code> so the button reappears in the same location on next launch.
+    </p>
+  </section>
+
+  <!-- ═══ §04 ═══ -->
+  <section>
+    <div class="section-kicker">§ 04</div>
+    <h2>The Routing Layer — Five Backends, One Interface</h2>
+
+    <p>
+      <code>ThotCoreProvider</code> is the central dispatcher. It holds lazy references to all five
+      provider implementations and routes a <code>ThotTask</code> to the correct one based on the
+      <code>ProviderType</code> enum attached to the task.
+    </p>
+
+    <p>
+      The routing switch is deliberately explicit rather than clever. Each case is named after the
+      provider it dispatches to. There is no reflection, no plugin registry, no factory class. The
+      entire routing logic is visible in a single <code>when</code> expression.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ThotCoreProvider.kt — runTask()</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">override fun</span> <span class="fn">runTask</span>(task: <span class="ty">ThotTask</span>, callback: (<span class="ty">String</span>) -> <span class="ty">Unit</span>) {
+    <span class="kw">when</span> (task.provider) {
+        <span class="ty">ProviderType</span>.<span class="prop">LOCAL</span>     -> scope.<span class="fn">launch</span> {
+            <span class="kw">val</span> result = <span class="fn">withContext</span>(<span class="ty">Dispatchers</span>.IO) {
+                localProvider.<span class="fn">handle</span>(task.<span class="fn">buildFullPrompt</span>())
+            }
+            <span class="fn">callback</span>(result)
+        }
+        <span class="ty">ProviderType</span>.<span class="prop">MEDIAPIPE</span> -> scope.<span class="fn">launch</span> {
+            <span class="kw">val</span> result = <span class="fn">withContext</span>(<span class="ty">Dispatchers</span>.IO) {
+                mediaPipeProvider.<span class="fn">handle</span>(task.<span class="fn">buildFullPrompt</span>(), prefs.localModelPath)
+            }
+            <span class="fn">callback</span>(result)
+        }
+        <span class="ty">ProviderType</span>.<span class="prop">LLAMACPP</span>  -> scope.<span class="fn">launch</span> {
+            <span class="kw">val</span> result = <span class="fn">withContext</span>(<span class="ty">Dispatchers</span>.IO) {
+                llamaCppProvider.<span class="fn">handle</span>(task.<span class="fn">buildFullPrompt</span>(), prefs.localModelPath)
+            }
+            <span class="fn">callback</span>(result)
+        }
+        <span class="ty">ProviderType</span>.<span class="prop">OPENAI</span>    -> openAiProvider.<span class="fn">query</span>(task.<span class="fn">buildFullPrompt</span>(), callback)
+        <span class="ty">ProviderType</span>.<span class="prop">ANTHROPIC</span> -> anthropicProvider.<span class="fn">query</span>(task.<span class="fn">buildFullPrompt</span>(), callback)
+    }
+}</div>
+    </div>
+
+    <h3>Why the callback pattern, not suspend functions</h3>
+
+    <p>
+      The API clients (OpenAI, Anthropic) use OkHttp's async <code>enqueue()</code> and deliver
+      results on the main thread via a <code>Handler</code>. The on-device providers are synchronous
+      and run on <code>Dispatchers.IO</code>. Both paths ultimately deliver a <code>String</code>
+      to the same callback. This callback-based interface was a deliberate choice over suspend
+      functions: the overlay service is a plain Android <code>Service</code> that does not own
+      a coroutine scope. The coroutine scope lives inside <code>ThotCoreProvider</code>, which
+      cancels it cleanly in <code>onDestroy()</code>.
+    </p>
+
+    <!-- Provider comparison table -->
+    <div class="compare-cards cols-5">
+      <div class="compare-header">
+        <div class="compare-header-cell">Provider</div>
+        <div class="compare-header-cell">Type</div>
+        <div class="compare-header-cell">Model</div>
+        <div class="compare-header-cell">API Key</div>
+        <div class="compare-header-cell">Offline</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">LOCAL</div>
+        <div class="compare-cell">Rule-based fallback</div>
+        <div class="compare-cell">—</div>
+        <div class="compare-cell good">No</div>
+        <div class="compare-cell good">Yes</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">MEDIAPIPE</div>
+        <div class="compare-cell">On-device (JNI)</div>
+        <div class="compare-cell">Gemma 3 1B INT4 (.task)</div>
+        <div class="compare-cell good">No</div>
+        <div class="compare-cell good">Yes</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">LLAMACPP</div>
+        <div class="compare-cell">On-device (JNI)</div>
+        <div class="compare-cell">Any GGUF (Llama, Mistral, Phi…)</div>
+        <div class="compare-cell good">No</div>
+        <div class="compare-cell good">Yes</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">OPENAI</div>
+        <div class="compare-cell">Cloud (OkHttp)</div>
+        <div class="compare-cell">GPT-4o</div>
+        <div class="compare-cell warn">Yes</div>
+        <div class="compare-cell bad">No</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">ANTHROPIC</div>
+        <div class="compare-cell">Cloud (OkHttp)</div>
+        <div class="compare-cell">claude-haiku-4-5</div>
+        <div class="compare-cell warn">Yes</div>
+        <div class="compare-cell bad">No</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ §05 ═══ -->
+  <section>
+    <div class="section-kicker">§ 05</div>
+    <h2>The Anthropic Client — Claude as Thot's Voice</h2>
+
+    <p>
+      The <code>AnthropicClient</code> wraps the Anthropic Messages API using OkHttp.
+      It is a self-contained class with no external dependencies beyond the HTTP client and
+      a reference to <code>ThotPreferences</code> for the API key.
+      The system prompt embedded in the client is where Thot's persona is defined:
+    </p>
+
+    <div class="pull-quote">
+      <p>"You are Thot, a helpful AI assistant embedded inside the Android operating system.
+        You can see the user's current screen context. Be concise, practical, and actionable.
+        When given screen context, reference it directly. Format your responses for a mobile
+        display — short paragraphs, avoid lengthy preambles."</p>
+      <cite>— AnthropicClient.kt, SYSTEM_PROMPT constant</cite>
+    </div>
+
+    <p>
+      The instruction to format for mobile display is not cosmetic. A response appropriate for a
+      desktop chat interface — with headings, bullet lists, and multiple paragraphs — is illegible
+      in a 300dp overlay panel on a phone screen. The system prompt constrains the model to produce
+      responses that are readable in context.
+    </p>
+
+    <h3>The prompt construction pipeline</h3>
+
+    <p>
+      Before any API call is made, the task's <code>buildFullPrompt()</code> method assembles the
+      final prompt from two pieces: the screen context captured by the accessibility service,
+      and the user's actual request.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ThotTask.kt — buildFullPrompt()</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">fun</span> <span class="fn">buildFullPrompt</span>(): <span class="ty">String</span> = <span class="kw">if</span> (screenContext.<span class="fn">isBlank</span>()) {
+    prompt
+} <span class="kw">else</span> {
+    <span class="str">"""
+    |[Screen context captured from current app]
+    |$screenContext
+    |
+    |[User request]
+    |$prompt
+    """</span>.<span class="fn">trimMargin</span>()
+}</div>
+    </div>
+
+    <p>
+      The section labels — <code>[Screen context captured from current app]</code> and
+      <code>[User request]</code> — are deliberate. They help the model distinguish between
+      information it is being shown about the environment and the instruction it is being asked to
+      follow. Without the separation, models occasionally conflate the two and attempt to "explain"
+      the user's own request rather than responding to it.
+    </p>
+
+    <p>
+      This prompt structure was refined through several iterations with the AI assistant acting as
+      both author and critic — writing a prompt version, then evaluating its own output against
+      sample screen contexts to identify where the model's response missed the mark.
+    </p>
+  </section>
+
+  <!-- ═══ §06 ═══ -->
+  <section>
+    <div class="section-kicker">§ 06</div>
+    <h2>The ChronoManager — Scheduled Automations</h2>
+
+    <p>
+      Thot includes a lightweight automation engine — <code>ChronoManager</code> — that allows
+      developers embedding Thot to schedule arbitrary coroutine-based tasks with either a one-shot
+      delay or a repeating interval. This is the most forward-looking part of the codebase: a
+      foundation for building agents that act on the user's behalf rather than waiting to be asked.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>ChronoManager — usage example</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">val</span> manager = <span class="fn">ChronoManager</span>()
+
+<span class="cm">// One-shot: send an email 10 minutes from now</span>
+manager.<span class="fn">addScript</span>(
+    <span class="fn">ChronoScript</span>(id = <span class="str">"welcome_email"</span>, description = <span class="str">"Send welcome email"</span>) {
+        <span class="fn">EmailAction</span>(context).<span class="fn">sendEmail</span>(<span class="str">"user@example.com"</span>, <span class="str">"Hello"</span>, <span class="str">"Welcome!"</span>)
+    },
+    delayMillis = <span class="num">10</span> * <span class="num">60</span> * <span class="num">1000L</span>
+)
+
+<span class="cm">// Repeating: check something every hour</span>
+manager.<span class="fn">addRepeatingScript</span>(
+    <span class="fn">ChronoScript</span>(id = <span class="str">"hourly_check"</span>, description = <span class="str">"Hourly task"</span>) {
+        <span class="cm">// suspend work runs here</span>
+    },
+    intervalMillis = <span class="num">60</span> * <span class="num">60</span> * <span class="num">1000L</span>
+)
+
+<span class="cm">// Cancel cleanly from onDestroy</span>
+manager.<span class="fn">cancelAll</span>()</div>
+    </div>
+
+    <p>
+      The <code>EmailAction</code> and <code>SmsAction</code> classes are intentionally thin —
+      they launch the system email chooser and SMS app respectively, rather than sending silently
+      in the background. This is a privacy boundary: Thot can surface a communication intent on
+      the user's behalf, but the user always confirms the send. Silent background communication
+      would require explicit opt-in and far more complex permission handling.
+    </p>
+  </section>
+
+  <!-- ═══ §07 ═══ -->
+  <section>
+    <div class="section-kicker">§ 07</div>
+    <h2>The Build System — Distribution at Scale</h2>
+
+    <p>
+      The build configuration borrows a pattern from the kabu-kabu-p2p project: a product flavor
+      dimension called <code>distribution</code> that produces separate build variants for Google
+      Play and F-Droid from a single codebase.
+    </p>
+
+    <!-- Build variant table -->
+    <div class="compare-cards cols-4">
+      <div class="compare-header">
+        <div class="compare-header-cell">Variant</div>
+        <div class="compare-header-cell">applicationId</div>
+        <div class="compare-header-cell">Firebase</div>
+        <div class="compare-header-cell">Use case</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label"><code>playstoreRelease</code></div>
+        <div class="compare-cell">com.techducat.thot</div>
+        <div class="compare-cell warn">✓ Crashlytics + Analytics</div>
+        <div class="compare-cell">Production Play Store</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label"><code>fdroidRelease</code></div>
+        <div class="compare-cell">com.techducat.thot.fdroid</div>
+        <div class="compare-cell good">✗ None</div>
+        <div class="compare-cell">F-Droid / privacy-first users</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label"><code>playstoreDebug</code></div>
+        <div class="compare-cell">com.techducat.thot.debug</div>
+        <div class="compare-cell good">✗ None</div>
+        <div class="compare-cell">Development</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label"><code>fdroidDebug</code></div>
+        <div class="compare-cell">com.techducat.thot.fdroid.debug</div>
+        <div class="compare-cell good">✗ None</div>
+        <div class="compare-cell">F-Droid development</div>
+      </div>
+    </div>
+
+    <p>
+      Firebase dependencies are scoped to the <code>playstore</code> flavor via
+      <code>"playstoreImplementation"(...)</code>. The F-Droid build has no GMS dependency
+      whatsoever — no Firebase, no Play Services, no tracking. The <code>IS_FDROID_BUILD</code>
+      boolean build config field gates any analytics or crash reporting calls at compile time,
+      not at runtime.
+    </p>
+
+    <p>
+      API keys are read from <code>local.properties</code> or from CI environment variables,
+      never from the application itself. This is the same secrets pattern employed in the
+      XMRWallet fork reviewed in Part I: credentials that live in version control are
+      credentials that will eventually be compromised.
+    </p>
+  </section>
+
+  <!-- ═══ §08 ═══ -->
+  <section>
+    <div class="section-kicker">§ 08</div>
+    <h2>Security Considerations</h2>
+
+    <p>
+      Thot's threat model is different from XMRWallet's — it handles no cryptographic key material,
+      manages no funds, and performs no blockchain operations. But its access to the device is more
+      expansive than almost any other application: it can read the screen content of every other
+      installed app. That privilege deserves examination.
+    </p>
+
+    <div class="callout callout-risk">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Risk: Screen content privacy</strong>
+        <p>When using a cloud backend (OpenAI or Anthropic), the text visible on the user's screen —
+        which may include passwords, banking information, private messages, or medical data — is
+        transmitted to a third-party API. The user must understand this before enabling a cloud
+        provider. On-device providers (MediaPipe, llama.cpp, LOCAL) never transmit screen content
+        outside the device.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-good">
+      <div class="callout-icon">🛡️</div>
+      <div class="callout-body">
+        <strong>Mitigation: Package filtering</strong>
+        <p>The accessibility service's <code>onAccessibilityEvent</code> handler explicitly skips
+        events from Thot's own package. A future hardening step would extend this to skip known
+        password manager packages and system keychain activities where screen content capture is
+        clearly inappropriate.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Note: Permission transparency</strong>
+        <p>The prominent disclosure dialog displayed on first launch explains precisely what the
+        Accessibility permission enables and why it is needed. This is both a Play Store requirement
+        and a design principle: users who understand what they are granting make more informed
+        decisions about which provider to select.</p>
+      </div>
+    </div>
+
+    <!-- Permissions table -->
+    <div class="compare-cards cols-3">
+      <div class="compare-header">
+        <div class="compare-header-cell">Permission</div>
+        <div class="compare-header-cell">Purpose</div>
+        <div class="compare-header-cell">Risk level</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">SYSTEM_ALERT_WINDOW</div>
+        <div class="compare-cell">Draw floating button over other apps</div>
+        <div class="compare-cell warn">Medium — can occlude content</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">BIND_ACCESSIBILITY_SERVICE</div>
+        <div class="compare-cell">Read visible text from any app's window</div>
+        <div class="compare-cell bad">High — broad screen read access</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">INTERNET</div>
+        <div class="compare-cell">Send prompts to cloud APIs</div>
+        <div class="compare-cell warn">Medium — data leaves device</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">VIBRATE</div>
+        <div class="compare-cell">Haptic feedback on response</div>
+        <div class="compare-cell good">None</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">SEND_SMS</div>
+        <div class="compare-cell">ChronoManager SMS automation (optional)</div>
+        <div class="compare-cell warn">Medium — communication on behalf of user</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ §09 ═══ -->
+  <section>
+    <div class="section-kicker">§ 09</div>
+    <h2>The AI Fingerprint in Thot</h2>
+
+    <p>
+      The question that animates both parts of this series is: what does AI-assisted development
+      actually look like in practice? Not in theory, not in marketing — in the code itself. Thot
+      offers a different specimen than the XMRWallet fork. Where the fork was AI-assisted
+      <em>refactoring</em> of an existing codebase, Thot is AI-assisted <em>construction</em>
+      of a new one. The patterns are different.
+    </p>
+
+    <p>
+      <strong>Architecture clarity from early critique.</strong> The initial design put the LLM
+      routing logic inside <code>ThotOverlayService</code>. The AI assistant flagged this as a
+      violation of single responsibility: the overlay service manages views and user interaction;
+      the routing logic belongs in a dedicated provider. The separation into
+      <code>ThotCoreProvider</code> was a direct consequence of that critique — and it is the
+      decision that makes the codebase testable.
+    </p>
+
+    <p>
+      <strong>Defensive patterns at the system boundary.</strong> The permission check before
+      <code>addFab()</code>, the post-to-main-handler timing fix, the bitwise flag toggling for
+      keyboard focus — all three were produced during review passes where the AI assistant read
+      the draft code and identified failure modes that are platform-specific and not obvious from
+      documentation alone. The pattern is identical to what we saw in the XMRWallet fork: AI tools
+      excel at the intersection of "well-documented best practice" and "routinely missed in
+      human-written code."
+    </p>
+
+    <p>
+      <strong>Prompt engineering as a first-class concern.</strong> The structured prompt format
+      in <code>ThotTask.buildFullPrompt()</code> — with explicit section labels separating context
+      from instruction — was refined iteratively. The AI assistant both wrote candidate prompt
+      templates and critiqued its own responses to them, identifying where model confusion arose
+      from ambiguous prompt structure. This self-evaluation loop is a development pattern that only
+      makes sense when the thing being built is itself an AI product.
+    </p>
+
+    <p>
+      <strong>What was not AI-generated.</strong> The decision to support five providers rather
+      than one — the architectural bet that on-device inference via llama.cpp is worth the
+      complexity of an NDK submodule — was a human call. The privacy framing of the permission
+      model, the choice to launch a system email chooser rather than send silently, the F-Droid
+      distribution flavor: these are product values, not code patterns. AI tools operate within
+      a brief; the brief itself is the human contribution that matters most.
+    </p>
+  </section>
+
+  <!-- ═══ §10 ═══ -->
+  <section>
+    <div class="section-kicker">§ 10</div>
+    <h2>Extending Thot — The Developer API</h2>
+
+    <p>
+      Thot is designed to be embedded in other applications, not only used as a standalone app.
+      The <code>BaseThotActivity</code> base class exposes a single method —
+      <code>requestLLMContext()</code> — that dispatches a task to the configured provider and
+      delivers the result on the main thread.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>BaseThotActivity — embedding Thot in another app</span>
+        <span class="lang">Kotlin</span>
+      </div>
+      <div class="code-body"><span class="kw">class</span> <span class="ty">MyActivity</span> : <span class="ty">BaseThotActivity</span>() {
+
+    <span class="kw">override fun</span> <span class="fn">onCreate</span>(savedInstanceState: <span class="ty">Bundle</span>?) {
+        <span class="kw">super</span>.<span class="fn">onCreate</span>(savedInstanceState)
+
+        <span class="kw">val</span> task = <span class="fn">ThotTask</span>(
+            prompt       = <span class="str">"Summarise the payment flow on this screen."</span>,
+            screenContext = <span class="str">"Checkout — Total: ₦45,000 — Pay with card"</span>,
+            provider     = <span class="ty">ProviderType</span>.<span class="prop">ANTHROPIC</span>
+        )
+
+        <span class="fn">requestLLMContext</span>(task) { response ->
+            <span class="cm">// delivered on main thread — update UI directly</span>
+            myTextView.text = response
+        }
+    }
+}</div>
+    </div>
+
+    <p>
+      The <code>screenContext</code> parameter does not have to come from the Accessibility API.
+      Any string can be passed — a database query result, a product description, a transaction
+      receipt. The accessibility integration is one source of context, not the only one. This
+      flexibility is what makes Thot a platform rather than a point solution.
+    </p>
+  </section>
+
+  <!-- ═══ CONCLUSION ═══ -->
+  <section>
+    <div class="section-kicker">Conclusion</div>
+    <h2>The Brief Is the Human Contribution That Matters Most</h2>
+
+    <p>
+      Thot and the XMRWallet fork share a common characteristic despite being very different
+      projects: in both cases, the most consequential AI contributions were not the ones that
+      wrote the most code. They were the ones that identified the most important problems — a
+      missing vsync timing guard, a misconfigured window flag, an architectural boundary that
+      needed to be drawn — before those problems reached production.
+    </p>
+
+    <p>
+      The limiting factor in AI-assisted development is not the AI's ability to write code. Any
+      capable model can produce syntactically correct Kotlin or idiomatic C++. The limiting factor
+      is the quality of the brief: the clarity of the problem statement, the depth of the platform
+      knowledge brought to the review, and the willingness to treat the AI's critiques as real
+      engineering input rather than suggestions to be politely ignored.
+    </p>
+
+    <p>
+      Thot works. It draws a floating button over every app, reads the screen, routes to the right
+      model, and delivers a response in a panel that appears in context where the user already is.
+      For a project of this architectural complexity — crossing OS-level APIs, JNI inference
+      runtimes, and cloud services in a single codebase — the velocity that AI assistance enabled
+      was measurable. So were the bugs it caught.
+    </p>
+
+    <div class="pull-quote">
+      <p>The Egyptian god Thot was the keeper of records, the documenter of what was true.
+        The software that bears his name is, in a smaller way, trying to do the same thing:
+        take what is visible on screen and make it more legible, more actionable, more useful.
+        Whether the AI assistance used to build it qualifies as intelligence is a question for
+        another article. That it helped build something better is not in doubt.</p>
+      <cite>— Article summary</cite>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="article-footer">
+    <div class="footer-left">
+      <p>SOURCE REPOSITORY</p>
+      <p style="margin-bottom:12px;color:var(--muted-hi)">github.com/niyid/thot-android-ai</p>
+      <p>PART I · XMRWALLET CASE STUDY</p>
+      <p style="color:var(--muted-hi)">oyeniyidada.substack.com</p>
+      <div class="footer-ref-list" style="margin-top:16px">
+        <a href="https://github.com/niyid/thot-android-ai">↗ github.com/niyid/thot-android-ai</a><br>
+        <a href="https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android">↗ Google AI Edge / MediaPipe LLM Inference</a><br>
+        <a href="https://huggingface.co/models?library=gguf">↗ Hugging Face GGUF models</a><br>
+        <a href="https://developer.android.com/reference/android/accessibilityservice/AccessibilityService">↗ Android AccessibilityService docs</a><br>
+        <a href="https://oyeniyidada.substack.com/p/ai-assisted-software-development">↗ Part I — XMRWallet as a Case Study</a>
+      </div>
+    </div>
+    <div class="footer-links">
+      <a class="footer-link" href="https://github.com/niyid/thot-android-ai" target="_blank">↗ View on GitHub</a>
+      <a class="footer-link" href="https://oyeniyidada.substack.com/p/ai-assisted-software-development" target="_blank">↗ Read Part I</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
