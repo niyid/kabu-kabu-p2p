@@ -126,32 +126,8 @@ class EmbeddedI2PRouter private constructor(
          * embedded router automatically discovers new servers or drops dead ones
          * without requiring an app update.
          */
-        /**
-         * Mirror list for the I2P project's reseed-server catalogue.
-         *
-         * Rationale for multiple mirrors:
-         *   - reseed.i2p2.de (the canonical host) fails DNS on some networks /
-         *     Android DNS resolvers, causing every cold boot to fall back to the
-         *     hardcoded URL list.
-         *   - Mirrors are tried in shuffled order so no single host is hammered
-         *     and a failure on one does not block startup.
-         *   - Each URL must return one HTTPS reseed URL per line.
-         */
-        private val RESEED_LIST_MIRRORS = listOf(
-            "https://reseed.i2p2.de/reseed-servers.txt",
-            "https://i2p.mooo.com/reseed-servers.txt",
-            "https://netdb.i2p2.no/reseed-servers.txt"
-        )
-
-        /** File name used to cache a successful fetch inside the app's files dir. */
-        private const val RESEED_CACHE_FILE = "reseed_urls.cache"
-
-        /**
-         * Maximum age of the on-disk URL cache before a live re-fetch is attempted.
-         * 7 days is a reasonable balance: the I2P reseed list is stable week-to-week
-         * but does change as servers rotate, so we don't want to cache indefinitely.
-         */
-        private const val RESEED_CACHE_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
+        private const val RESEED_LIST_URL =
+            "https://reseed.i2p2.de/reseed-servers.txt"
 
         /**
          * Fetch the live reseed-server list from the I2P project, merge with
@@ -163,97 +139,37 @@ class EmbeddedI2PRouter private constructor(
          *
          * Must NOT be called on the main thread.
          */
-        /**
-         * Fetch the live reseed-server list, merge with [FALLBACK_RESEED_URLS],
-         * shuffle, and return as a comma-separated string for `i2p.reseedURL`.
-         *
-         * Strategy (in order):
-         *  1. If a fresh on-disk cache exists (< 7 days old), use it immediately —
-         *     no network required on warm boots.
-         *  2. Try each mirror in random order with a short per-host timeout.
-         *     The first mirror that returns ≥1 HTTPS URL wins; the result is
-         *     merged with [FALLBACK_RESEED_URLS], shuffled, written to disk, and
-         *     returned.
-         *  3. If all mirrors fail but a stale cache exists, use it rather than
-         *     falling back to the fully-hardcoded list.
-         *  4. Last resort: return [FALLBACK_RESEED_URLS] shuffled.
-         *
-         * Must NOT be called on the main thread.
-         *
-         * @param cacheDir  directory used for the on-disk cache (pass the I2P
-         *                  config dir so the cache survives across restarts).
-         */
-        fun fetchActiveReseedUrls(cacheDir: java.io.File? = null): String {
-            val cacheFile = cacheDir?.let { java.io.File(it, RESEED_CACHE_FILE) }
-            val fallbackList = FALLBACK_RESEED_URLS.split(",").map { it.trim() }
-
-            // 1. Fresh cache hit — skip the network entirely.
-            if (cacheFile != null && cacheFile.exists()) {
-                val ageMs = System.currentTimeMillis() - cacheFile.lastModified()
-                if (ageMs < RESEED_CACHE_MAX_AGE_MS) {
-                    val cached = cacheFile.readText().trim()
-                    if (cached.isNotEmpty()) {
-                        android.util.Log.i(TAG, "Reseed URLs loaded from cache (age ${ageMs / 3_600_000}h): ${cached.take(60)}...")
-                        return cached
-                    }
-                } else {
-                    android.util.Log.d(TAG, "Reseed cache stale (${ageMs / 3_600_000}h old) — attempting live fetch")
+        fun fetchActiveReseedUrls(): String {
+            return try {
+                val url = java.net.URL(RESEED_LIST_URL)
+                val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 8_000
+                    readTimeout    = 8_000
+                    requestMethod  = "GET"
                 }
-            }
-
-            // 2. Try each mirror in shuffled order.
-            var fetched: List<String> = emptyList()
-            for (mirrorUrl in RESEED_LIST_MIRRORS.shuffled()) {
-                try {
-                    android.util.Log.d(TAG, "Trying reseed mirror: $mirrorUrl")
-                    val conn = (java.net.URL(mirrorUrl).openConnection() as java.net.HttpURLConnection).apply {
-                        connectTimeout = 8_000
-                        readTimeout    = 8_000
-                        requestMethod  = "GET"
-                        setRequestProperty("User-Agent", "Verzus/1.0")
-                    }
-                    val lines = conn.inputStream.bufferedReader().use { it.readLines() }
-                    conn.disconnect()
-
-                    fetched = lines.map { it.trim() }.filter { it.startsWith("https://") }
-                    if (fetched.isNotEmpty()) {
-                        android.util.Log.i(TAG, "Reseed list fetched from $mirrorUrl: ${fetched.size} URLs")
-                        break
-                    }
-                    android.util.Log.w(TAG, "Mirror $mirrorUrl returned no HTTPS URLs — trying next")
-                } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Mirror $mirrorUrl failed (${e.javaClass.simpleName}: ${e.message}) — trying next")
+                val fetched: List<String> = conn.inputStream.bufferedReader().use { reader ->
+                    reader.readLines()
+                        .map { it.trim() }
+                        .filter { it.startsWith("https://") }
                 }
-            }
+                conn.disconnect()
 
-            if (fetched.isNotEmpty()) {
-                // Merge: live list first, then any fallback URLs not already present.
-                val merged = (fetched + fallbackList).distinct().shuffled()
+                if (fetched.isEmpty()) {
+                    android.util.Log.w(TAG, "Reseed list fetch returned no HTTPS URLs — using fallback")
+                    return FALLBACK_RESEED_URLS
+                }
+
+                // Merge: live list first (newer servers), then any fallback URLs not
+                // already present (so well-known reliable servers are always included).
+                val fallbackList = FALLBACK_RESEED_URLS.split(",").map { it.trim() }
+                val merged = (fetched + fallbackList).distinct()
                 val result = merged.joinToString(",")
-                android.util.Log.i(TAG, "Reseed URLs merged: ${fetched.size} live + fallback = ${merged.size} total")
-
-                // Persist to disk so the next cold boot is instant.
-                try {
-                    cacheFile?.writeText(result)
-                    android.util.Log.d(TAG, "Reseed URL cache written to ${cacheFile?.absolutePath}")
-                } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Could not write reseed cache: ${e.message}")
-                }
-                return result
+                android.util.Log.i(TAG, "Reseed URLs updated: ${fetched.size} live + fallback = ${merged.size} total")
+                result
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Could not fetch live reseed list (${e.message}) — using hardcoded fallback")
+                FALLBACK_RESEED_URLS
             }
-
-            // 3. All mirrors failed — fall back to stale cache if available.
-            if (cacheFile != null && cacheFile.exists()) {
-                val stale = cacheFile.readText().trim()
-                if (stale.isNotEmpty()) {
-                    android.util.Log.w(TAG, "All mirrors failed — using stale reseed cache")
-                    return stale
-                }
-            }
-
-            // 4. Last resort: hardcoded list, shuffled so the load is spread.
-            android.util.Log.w(TAG, "All mirrors failed and no cache — using hardcoded fallback")
-            return fallbackList.shuffled().joinToString(",")
         }
 
         @Volatile private var _instance: EmbeddedI2PRouter? = null
@@ -588,9 +504,7 @@ class EmbeddedI2PRouter private constructor(
 
         // CRITICAL: reseedURL must be a System property — it is shadowed in router.config
         // by the Router's internal _overrideProps before System.getProperty() fallback.
-        val activeReseedUrls = fetchActiveReseedUrls(cacheDir = configDir)
-        // cacheDir passed so successful fetches are persisted; subsequent
-        // cold boots skip the network if the cache is < 7 days old.
+        val activeReseedUrls = fetchActiveReseedUrls()
         System.setProperty("i2p.reseedURL", activeReseedUrls)
         Log.i(TAG, "Set i2p.dir.base = ${configDir.absolutePath}")
         Log.i(TAG, "Set i2p.reseedURL = ${activeReseedUrls.take(60)}…")
