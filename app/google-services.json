@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1016282522210",
+    "project_id": "apo-android-b47f4",
+    "storage_bucket": "apo-android-b47f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1016282522210:android:0afaf7dcca37a09212673b",
+        "android_client_info": {
+          "package_name": "com.techducat.kabukabu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBeO86Eg-Iw8bwZFRB_nwCmNvVAi6jYyq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
