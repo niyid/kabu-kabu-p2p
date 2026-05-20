@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Kabu-Kabu is dark-first; night theme is identical to day theme -->
-    <style name="Theme.KabuKabu" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <style name="Theme.KabuKabu" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/kabu_amber</item>
-        <item name="colorPrimaryVariant">@color/kabu_gold_dark</item>
+        <item name="colorPrimaryContainer">@color/kabu_gold_dark</item>
         <item name="colorOnPrimary">@color/kabu_text_on_amber</item>
         <item name="colorSecondary">@color/kabu_gold</item>
         <item name="colorOnSecondary">@color/kabu_text_on_amber</item>
