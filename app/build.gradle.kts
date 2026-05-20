@@ -24,6 +24,9 @@ plugins {
     id("com.google.dagger.hilt.android")
     // protobuf plugin — needed by Monerujo gRPC stubs (same version as Verzus)
     id("com.google.protobuf")
+    // Firebase: google-services for project config + Crashlytics for crash reporting
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 // ── Secrets ──────────────────────────────────────────────────────────────────
@@ -88,8 +91,6 @@ android {
         buildConfigField("int",     "GEOHASH_PRECISION",    "5")      // ~5 km cell
         buildConfigField("String",  "I2P_SERVICE_HOST",     "\"127.0.0.1\"")
         buildConfigField("int",     "I2P_SERVICE_PORT",     "8881")   // distinct from Buzzr's 8880
-        buildConfigField("String",  "BUGFENDER_KEY",
-            "\"${getLocalProperty("BUGFENDER_KEY")}\"")
 
         // ── Monero / XMR build flags ──────────────────────────────────────
         buildConfigField("boolean", "IS_MAINNET",   "$isMainnet")
@@ -428,8 +429,17 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
 
     // Logging
-    implementation("com.bugfender.sdk:android:3.1.1")
+    // Bugfender (com.bugfender.sdk:android:3.1.1) REMOVED — replaced by Firebase Crashlytics.
+    // Timber is kept for structured local logging; errors are forwarded to Crashlytics in release.
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // ===== FIREBASE CRASHLYTICS =====
+    // Requires google-services.json placed at app/google-services.json
+    // Get it from: Firebase Console → Project Settings → Your Android app
+    val firebaseBom = platform("com.google.firebase:firebase-bom:33.7.0")
+    implementation(firebaseBom)
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
 
     // ── Monerujo / XMR wallet — gRPC stubs (same as Verzus) ──────────────────
     // Monerujo Java sources are compiled directly from src/main/java/com/m2049r/xmrwallet/

@@ -3,7 +3,8 @@ package com.techducat.kabukabu
 import android.app.Application
 import android.content.Context
 import android.util.Log
-import com.bugfender.sdk.Bugfender
+import com.google.firebase.FirebaseApp
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.techducat.kabukabu.network.EmbeddedI2PRouter
 import com.techducat.kabukabu.service.I2PKabuService
 import dagger.hilt.android.HiltAndroidApp
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * KabuKabuApp — Privacy-first P2P taxi & courier application.
@@ -44,22 +46,47 @@ class KabuKabuApp : Application() {
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        } else {
+            // In release builds, plant a concise tree that only logs W+ to logcat
+            // and forwards errors to Firebase Crashlytics.
+            // NOTE: FirebaseCrashlytics.getInstance() must NOT be called here — Firebase
+            // is not initialized until onCreate(). Use lazy so the first access happens
+            // after FirebaseApp.initializeApp() has run.
+            Timber.plant(object : Timber.Tree() {
+                private val crashlytics by lazy { FirebaseCrashlytics.getInstance() }
+
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+                    if (priority < Log.WARN) return
+                    Log.println(priority, tag ?: "KabuKabuApp", message)
+                    // Log non-fatal issues and exceptions to Crashlytics
+                    crashlytics.log("[$tag] $message")
+                    if (t != null) {
+                        if (priority >= Log.ERROR) {
+                            crashlytics.recordException(t)
+                        }
+                    }
+                }
+            })
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.BUGFENDER_KEY.isNotEmpty()) {
-            Bugfender.init(this, BuildConfig.BUGFENDER_KEY, BuildConfig.DEBUG)
-            Bugfender.enableCrashReporting()
-            Bugfender.enableLogcatLogging()
-        }
-        Log.i(TAG, "KabuKabuApp starting — P2P mode, I2P transport")
+
+        // Initialize Firebase (required before any Firebase service, including Crashlytics)
+        FirebaseApp.initializeApp(this)
+        // Enable Crashlytics crash collection (disabled in debug builds to reduce noise)
+        FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !BuildConfig.DEBUG
+
+        Timber.tag(TAG).i("KabuKabuApp starting — P2P mode, I2P transport")
 
         // Start I2P service immediately if device is already registered
         val deviceId = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .getString(KEY_DEVICE_ID, "") ?: ""
         if (deviceId.isNotEmpty()) {
-            Log.i(TAG, "Existing device ID found — starting I2PKabuService")
+            Timber.tag(TAG).i("Existing device ID found — starting I2PKabuService")
             I2PKabuService.startService(this)
         }
     }
