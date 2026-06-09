@@ -74,6 +74,7 @@ protobuf {
 android {
     namespace  = "com.techducat.kabukabu"
     compileSdk = 36
+    ndkVersion = "29.0.13113456"
 
     defaultConfig {
         applicationId   = "com.techducat.kabukabu"
