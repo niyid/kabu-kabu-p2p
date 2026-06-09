@@ -12,7 +12,7 @@
     <exclude domain="database" path="kabu_kabu.db-shm"/>
     <exclude domain="database" path="kabu_kabu.db-wal"/>
     <!-- Exclude shared preferences (contains hashed device ID) -->
-    <exclude domain="sharedpref" path="com.techducat.kabukabu.Prefs.xml"/>
+    <exclude domain="sharedpref" path="com.techducat.kabusquared.Prefs.xml"/>
     <!-- Exclude I2P router config (contains cryptographic identity) -->
     <exclude domain="file" path="i2p/"/>
 </full-backup-content>

@@ -1,10 +1,10 @@
 # Kabu-Kabu P2P — ProGuard rules
 
 # Keep Room entities and DAOs
--keep class com.techducat.kabukabu.db.** { *; }
+-keep class com.techducat.kabusquared.db.** { *; }
 
 # Keep domain model (passed through JSON reflection)
--keep class com.techducat.kabukabu.model.** { *; }
+-keep class com.techducat.kabusquared.model.** { *; }
 
 # Keep Hilt-generated classes
 -keep class dagger.hilt.** { *; }
@@ -42,7 +42,7 @@
 -dontwarn com.m2049r.xmrwallet.**
 
 # Keep Kabu-Kabu wallet façade classes
--keep class com.techducat.kabukabu.wallet.** { *; }
+-keep class com.techducat.kabusquared.wallet.** { *; }
 
 # Keep native method declarations (JNI bridge to libmonerujo.so)
 -keepclasseswithmembernames class * {

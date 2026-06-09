@@ -72,12 +72,12 @@ protobuf {
 
 // ── Android ──────────────────────────────────────────────────────────────────
 android {
-    namespace  = "com.techducat.kabukabu"
+    namespace  = "com.techducat.kabusquared"
     compileSdk = 36
     ndkVersion = "29.0.13113456"
 
     defaultConfig {
-        applicationId   = "com.techducat.kabukabu"
+        applicationId   = "com.techducat.kabusquared"
         minSdk          = 26          // I2P embedded router requires API 26+
         targetSdk       = 36
         versionCode = 15 
