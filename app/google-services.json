@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1016282522210:android:0afaf7dcca37a09212673b",
+        "mobilesdk_app_id": "1:1016282522210:android:aa95eec7d4a5e60a12673b",
         "android_client_info": {
-          "package_name": "com.techducat.kabukabu"
+          "package_name": "com.techducat.kabusquared"
         }
       },
       "oauth_client": [],
