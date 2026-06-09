@@ -150,6 +150,16 @@ class MainActivity :
         if (!policyAccepted) showPrivacyDialog() else initAfterConsent()
     }
 
+    override fun onStart() {
+        super.onStart()
+        // Start the foreground service here — the activity is now visible, so Android 12+
+        // ForegroundServiceStartNotAllowedException cannot fire.  The guard prevents
+        // redundant startForegroundService() calls on every onStart.
+        if (policyAccepted && isRegistered && !I2PKabuService.isRunning(this)) {
+            I2PKabuService.startService(this)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (policyAccepted && isRegistered) startLocationUpdates()

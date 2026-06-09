@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.techducat.kabukabu.network.EmbeddedI2PRouter
-import com.techducat.kabukabu.service.I2PKabuService
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,14 +80,11 @@ class KabuKabuApp : Application() {
         FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !BuildConfig.DEBUG
 
         Timber.tag(TAG).i("KabuKabuApp starting — P2P mode, I2P transport")
-
-        // Start I2P service immediately if device is already registered
-        val deviceId = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .getString(KEY_DEVICE_ID, "") ?: ""
-        if (deviceId.isNotEmpty()) {
-            Timber.tag(TAG).i("Existing device ID found — starting I2PKabuService")
-            I2PKabuService.startService(this)
-        }
+        // I2PKabuService is started from MainActivity.onStart() / DriverActivity once
+        // the app is in the foreground.  Starting a foreground service from
+        // Application.onCreate() is forbidden on Android 12+ (API 31+) and throws
+        // ForegroundServiceStartNotAllowedException when the process is created in the
+        // background (e.g. by the system after a reboot or low-memory kill).
     }
 
     override fun onTerminate() {

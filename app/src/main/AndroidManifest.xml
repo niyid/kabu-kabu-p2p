@@ -39,6 +39,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
     <!-- Camera (optional proof-of-delivery photo — stored locally) -->
@@ -85,7 +86,7 @@
             android:name=".service.I2PKabuService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync|remoteMessaging"/>
+            android:foregroundServiceType="dataSync|remoteMessaging|location"/>
 
             <!-- DriverActivity — driver/courier runner UI -->
         <activity
