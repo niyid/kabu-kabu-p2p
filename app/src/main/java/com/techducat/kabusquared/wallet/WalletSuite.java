@@ -115,7 +115,7 @@ public class WalletSuite {
             new AtomicReference<>(WalletState.IDLE);
 
     private volatile Wallet           wallet;
-    private final    WalletManager    walletManager;
+    private          WalletManager    walletManager;   // null when native lib unavailable
     private final    Context          context;
     private final    ExecutorService  executor;
     private final    ExecutorService  syncExecutor;
@@ -246,18 +246,26 @@ public class WalletSuite {
             return t;
         });
 
-        // Initialise native Monero library (same lib as Verzus/Monerujo)
+        // Initialise native Monero library (same lib as Verzus/Monerujo).
+        // Do NOT throw from the constructor — getInstance() is called from RideWalletManager
+        // which is constructed in Activity.onCreate().  A constructor throw propagates as an
+        // unhandled RuntimeException that crashes the process with no recovery path.
+        // Instead we set walletManager = null and let initializeWallet() surface the error
+        // through the WalletStatusListener callback.
+        WalletManager tmpWm = null;
         if (!nativeAvailable()) {
-            throw new RuntimeException("libmonerujo.so could not be loaded — check jniLibs/arm64-v8a");
+            Log.e(TAG, "libmonerujo.so could not be loaded — wallet functions disabled");
+        } else {
+            try {
+                tmpWm = WalletManager.getInstance();
+                loadConfiguration();
+                Log.i(TAG, "WalletSuite created — daemon: " + daemonAddress + ":" + daemonPort);
+            } catch (Exception e) {
+                Log.e(TAG, "WalletSuite init failed", e);
+                tmpWm = null;
+            }
         }
-        try {
-            walletManager = WalletManager.getInstance();
-            loadConfiguration();
-            Log.i(TAG, "WalletSuite created — daemon: " + daemonAddress + ":" + daemonPort);
-        } catch (Exception e) {
-            Log.e(TAG, "WalletSuite init failed", e);
-            throw new RuntimeException("WalletSuite init failed", e);
-        }
+        walletManager = tmpWm;
     }
 
     // =========================================================================
@@ -326,7 +334,7 @@ public class WalletSuite {
         activeUserId = userId;
         executor.execute(() -> {
             try {
-                if (!nativeAvailable()) {
+                if (!nativeAvailable() || walletManager == null) {
                     notifyInitResult(false, "Native Monero library unavailable — libmonerujo.so not loaded");
                     return;
                 }
@@ -783,8 +791,7 @@ public class WalletSuite {
                 if (txId == null || txId.isEmpty()) {
                     mainHandler.post(() -> cb.onError("broadcast failed: empty txId after co-sign"));
                     return;
-                }
-                Log.i(TAG, "✓ Broadcast complete — txId: " + txId);
+                }                Log.i(TAG, "✓ Broadcast complete — txId: " + txId);
                 wallet.store();
                 updateBalanceFromWallet();
                 mainHandler.post(() -> cb.onSuccess(txId, 0L));
@@ -902,14 +909,21 @@ public class WalletSuite {
                     PendingTransaction.Priority.Priority_Default.getValue(), 0);
                 if (pt == null || pt.getStatus() != PendingTransaction.Status.Status_Ok) {
                     String err = (pt != null) ? pt.getErrorString() : wallet.getErrorString();
+                    if (pt != null) wallet.disposePendingTransaction();
                     mainHandler.post(() -> cb.onError(err));
                     return;
                 }
                 // getFirstTxId() is only populated AFTER commit(); calling it before
                 // always returns an empty string.  Commit first, then read the txId.
                 boolean ok = pt.commit("", true);
-                if (!ok) { mainHandler.post(() -> cb.onError(pt.getErrorString())); return; }
+                if (!ok) {
+                    String err = pt.getErrorString();
+                    wallet.disposePendingTransaction();
+                    mainHandler.post(() -> cb.onError(err));
+                    return;
+                }
                 String txId = pt.getFirstTxId();
+                wallet.disposePendingTransaction();
                 wallet.store();
                 updateBalanceFromWallet();
                 mainHandler.post(() -> cb.onSuccess(txId, atomic));

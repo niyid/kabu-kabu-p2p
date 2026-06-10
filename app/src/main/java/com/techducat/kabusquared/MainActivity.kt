@@ -172,7 +172,7 @@ class MainActivity :
 
     override fun onDestroy() {
         super.onDestroy()
-        i2pClient.close()
+        if (::i2pClient.isInitialized) i2pClient.close()
     }
 
     // ── Initialisation ────────────────────────────────────────────────────────

@@ -407,15 +407,9 @@ class I2PKabuService : LifecycleService() {
         Log.i(TAG, "handleWalletMultisigInfo: rideId=$rideId peerIsRider=$isRider")
 
         val rwm = rideWalletManager
-        // `is_rider` flag identifies the SENDER of this message, not this device.
-        //
-        //  Message from RIDER  → received on DRIVER device: isRider=true  → driver doesn't fund → 0L
-        //  Message from DRIVER → received on RIDER  device: isRider=false → rider funds escrow  → farePiconero
-        //
-        // fare_xmr in the I2P message is in display millicents (ɱ); convert to piconero for WalletSuite.
-        val farePiconero = com.techducat.kabusquared.network.FareEstimator.toAtomicUnits(fareMillicents)
-        rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else farePiconero)
-
+        // Register the listener BEFORE calling finalizeEscrowWithPeer so we never
+        // miss the onEscrowReady/onEscrowFunded callback, even if the executor is
+        // very fast (wallet already in multisig mode from a prior session).
         rwm.setPaymentListener(object : RideWalletManager.RidePaymentListener {
             override fun onEscrowReady(escrowAddress: String) {
                 broadcastToLocalClients(JSONObject().apply {
@@ -452,6 +446,12 @@ class I2PKabuService : LifecycleService() {
                 Log.e(TAG, "Escrow error in $phase: $error")
             }
         })
+        // `is_rider` flag identifies the SENDER of this message, not this device.
+        //  Message from RIDER  → received on DRIVER device: isRider=true  → driver doesn't fund → 0L
+        //  Message from DRIVER → received on RIDER  device: isRider=false → rider funds escrow  → farePiconero
+        // fare_xmr in the I2P message is in display millicents (ɱ); convert to piconero for WalletSuite.
+        val farePiconero = com.techducat.kabusquared.network.FareEstimator.toAtomicUnits(fareMillicents)
+        rwm.finalizeEscrowWithPeer(peerInfo, if (isRider) 0L else farePiconero)
     }
 
     /**
