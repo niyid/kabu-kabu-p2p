@@ -98,5 +98,7 @@ class KabuKabuApp : Application() {
             }
         }
         EmbeddedI2PRouter.releaseInstance()
+        // Cleanly close the wallet (flush cache, clear native handles)
+        try { com.techducat.kabusquared.wallet.WalletSuite.getInstance(this).shutdown() } catch (_: Exception) {}
     }
 }

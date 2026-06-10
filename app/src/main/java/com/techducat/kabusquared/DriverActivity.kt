@@ -344,8 +344,15 @@ class DriverActivity :
 
     private fun completeTrip() {
         val request = activeRequest ?: return
+        // Set IDLE immediately so a second tap of the status button is a no-op
+        // while the coroutine is in-flight (sendTripEvent + DB write can take ~1s).
+        driverState = DriverState.IDLE
+        updateStatusButton()
+        val completedTripId = activeTripId
+        activeRequest = null
+        activeTripId  = ""
         val event = TripEvent(
-            tripId         = activeTripId,
+            tripId         = completedTripId,
             driverId       = deviceId,
             eventType      = TripEventType.TRIP_COMPLETED,
             currentGeohash = lastKnownGeohash,
@@ -353,22 +360,18 @@ class DriverActivity :
         )
         lifecycleScope.launch {
             i2pClient.sendTripEvent(event)
-            persistCompletedTrip(request)
+            persistCompletedTrip(completedTripId, request)
             withContext(Dispatchers.Main) {
                 tvTripInfo.text = getString(R.string.event_trip_completed)
-                driverState = DriverState.IDLE
-                activeRequest = null
-                activeTripId  = ""
-                updateStatusButton()
                 Toast.makeText(this@DriverActivity, R.string.event_trip_completed, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private suspend fun persistCompletedTrip(request: RideRequest) {
+    private suspend fun persistCompletedTrip(tripId: String, request: RideRequest) {
         val now = System.currentTimeMillis()
         val entity = TripEntity(
-            tripId         = activeTripId,
+            tripId         = tripId,
             localRole      = "driver",
             peerId         = request.riderId,
             pickupGeohash  = request.pickupGeohash,

@@ -296,6 +296,9 @@ public class WalletSuite {
      * Call once per session from {@code MainActivity.onCreate()} /
      * {@code DriverActivity.onCreate()} after the device-ID is known.
      */
+    // Prevents multiple concurrent initializeWallet() calls from all racing onto the executor.
+    private volatile boolean walletInitializing = false;
+
     public void initializeWallet(String userId) {
         if (userId == null || userId.isBlank()) {
             Log.e(TAG, "initializeWallet: userId is blank");
@@ -306,15 +309,27 @@ public class WalletSuite {
         // Application.onTerminate() that closed the wallet), we must re-open it.
         if (isInitialized && wallet != null && userId.equals(activeUserId)) {
             Log.d(TAG, "Wallet already initialized for " + userId);
+            // Still fire the callback so late-joining listeners (e.g. WalletActivity opened
+            // after MainActivity already initialised the wallet) receive the ready signal.
+            final String addr = wallet.getAddress();
+            notifyInitResult(true, "Wallet ready — " + addr.substring(0, 12) + "…");
             return;
+        }
+        // Only one init attempt at a time — additional callers are no-ops until it completes.
+        synchronized (this) {
+            if (walletInitializing) {
+                Log.d(TAG, "initializeWallet: already in progress — ignoring duplicate call");
+                return;
+            }
+            walletInitializing = true;
         }
         activeUserId = userId;
         executor.execute(() -> {
-            if (!nativeAvailable()) {
-                notifyInitResult(false, "Native Monero library unavailable — libmonerujo.so not loaded");
-                return;
-            }
             try {
+                if (!nativeAvailable()) {
+                    notifyInitResult(false, "Native Monero library unavailable — libmonerujo.so not loaded");
+                    return;
+                }
                 Log.i(TAG, "=== INIT WALLET for " + userId.substring(0, 8) + "... ===");
 
                 NetworkType nt = "2".equals(networkType) || "stagenet".equalsIgnoreCase(networkType)
@@ -390,6 +405,9 @@ public class WalletSuite {
             } catch (Exception e) {
                 Log.e(TAG, "initializeWallet failed", e);
                 notifyInitResult(false, "Exception: " + e.getMessage());
+            } finally {
+                // Always release the initializing flag so retries are possible after a failure.
+                walletInitializing = false;
             }
         });
     }
@@ -400,6 +418,8 @@ public class WalletSuite {
 
     public void setStatusListener(@Nullable WalletStatusListener l)  { statusListener    = l; }
     public void setTransactionListener(@Nullable TransactionListener l) { transactionListener = l; }
+    @Nullable
+    public WalletStatusListener getCurrentStatusListener() { return statusListener; }
 
     // =========================================================================
     //  Balance helpers
@@ -668,11 +688,14 @@ public class WalletSuite {
                 // Commit (will require both signatures — the peer must also sign)
                 boolean ok = pendingTx.commit("", true);
                 if (!ok) {
-                    mainHandler.post(() -> cb.onError("TX commit failed: " + pendingTx.getErrorString()));
+                    String commitErr = pendingTx.getErrorString();
+                    wallet.disposePendingTransaction();
+                    mainHandler.post(() -> cb.onError("TX commit failed: " + commitErr));
                     return;
                 }
 
                 String txId = pendingTx.getFirstTxId();
+                wallet.disposePendingTransaction();
                 Log.i(TAG, "✓ Escrow release TX submitted: " + txId);
                 wallet.store();
                 updateBalanceFromWallet();
@@ -942,10 +965,13 @@ public class WalletSuite {
         syncExecutor.shutdown();
         scheduler.shutdown();
         try {
-            if (wallet != null) { wallet.store(); wallet.close(); }
+            if (wallet != null) { wallet.store(); wallet.close(); wallet = null; }
         } catch (Exception e) {
             Log.w(TAG, "shutdown exception", e);
         }
-        instance = null;
+        isInitialized    = false;
+        walletInitializing = false;
+        activeUserId     = null;
+        instance         = null;
     }
 }

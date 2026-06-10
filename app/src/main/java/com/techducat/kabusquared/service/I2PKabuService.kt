@@ -546,11 +546,14 @@ class I2PKabuService : LifecycleService() {
 
     internal fun broadcastToLocalClients(msg: String) {
         localClients.forEach { it.send(msg) }
+        // Prune sessions that died during this broadcast (or earlier)
+        localClients.removeIf { it.dead }
     }
 
     private fun fanOutToLocalClients(json: JSONObject, excludeSession: ClientSession? = null) {
         val msg = json.toString()
         localClients.forEach { if (it != excludeSession) it.send(msg) }
+        localClients.removeIf { it.dead }
     }
 
     private fun sendOverI2P(json: JSONObject) {
@@ -623,13 +626,18 @@ class I2PKabuService : LifecycleService() {
 
     inner class ClientSession(private val socket: Socket) {
         var deviceId: String? = null
+        @Volatile var dead = false
         private val writer = PrintWriter(socket.getOutputStream(), true)
 
         fun send(msg: String) {
-            try { writer.println(msg) } catch (_: Exception) {}
+            if (dead) return
+            try { writer.println(msg) } catch (_: Exception) {
+                dead = true          // mark dead; handleLocalClient's finally will remove us
+            }
         }
 
         fun close() {
+            dead = true
             try { socket.close() } catch (_: Exception) {}
         }
     }

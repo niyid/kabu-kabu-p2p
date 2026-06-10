@@ -42,6 +42,7 @@ class WalletActivity : AppCompatActivity(), WalletSuite.WalletStatusListener {
 
     private lateinit var walletSuite: WalletSuite
     private lateinit var deviceId:    String
+    private var previousStatusListener: WalletSuite.WalletStatusListener? = null
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -56,6 +57,10 @@ class WalletActivity : AppCompatActivity(), WalletSuite.WalletStatusListener {
         bindViews()
 
         walletSuite = WalletSuite.getInstance(this)
+        // Save the listener registered by MainActivity so we can restore it when
+        // this activity is destroyed.  Without this, MainActivity permanently loses
+        // its balance-update callbacks after the user visits the Wallet screen.
+        previousStatusListener = walletSuite.getCurrentStatusListener()
         walletSuite.setStatusListener(this)
 
         // Initialize if not already done
@@ -71,10 +76,10 @@ class WalletActivity : AppCompatActivity(), WalletSuite.WalletStatusListener {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Clear the listener ONLY if it's still this activity — the singleton WalletSuite
-        // may have had its listener overwritten by MainActivity between our onCreate and onDestroy.
-        // Using setStatusListener(null) unconditionally is safe because WalletSuite now accepts null.
-        walletSuite.setStatusListener(null)
+        // Restore the previous listener (MainActivity's) so it continues receiving
+        // balance updates.  setStatusListener(null) is also safe here because
+        // WalletSuite accepts @Nullable, but restoring is more correct.
+        walletSuite.setStatusListener(previousStatusListener)
     }
 
     // ── View binding ──────────────────────────────────────────────────────────

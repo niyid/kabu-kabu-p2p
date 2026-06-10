@@ -375,6 +375,11 @@ class MainActivity :
      * is available to cover the fare.
      */
     private fun onDriverOfferAccepted(offer: DriverOffer) {
+        // Guard: wallet may not be ready yet if the offer arrived before registration completed.
+        if (!::rideWalletManager.isInitialized) {
+            Toast.makeText(this, R.string.error_not_ready, Toast.LENGTH_SHORT).show()
+            return
+        }
         pendingAcceptOffer      = offer
         // counterFareXMR is in display millicents (ɱ); convert to piconero for WalletSuite.
         currentFareAtomicUnits  = com.techducat.kabusquared.network.FareEstimator
@@ -391,6 +396,10 @@ class MainActivity :
     // ── XMR wallet — escrow setup ─────────────────────────────────────────────
 
     private fun startEscrowSetup() {
+        if (!::rideWalletManager.isInitialized) {
+            Log.e(TAG, "startEscrowSetup called before wallet init — aborting")
+            return
+        }
         rideWalletManager.prepareLocalEscrow(
             onReady = { myInfo, myAddress ->
                 Log.i(TAG, "Escrow prepared — relaying multisig info to driver over I2P")
@@ -429,16 +438,23 @@ class MainActivity :
                 when (type) {
                     "wallet_multisig_info" -> {
                         // Peer (driver) sent their multisig info → finalise our side of the escrow
-                        val peerInfo    = payload.optString("info", "")
+                        val peerInfo       = payload.optString("info", "")
                         val fareMillicents = payload.optLong("fare_xmr", 0L)
-                        val isRider     = payload.optBoolean("is_rider", false)
+                        val isRider        = payload.optBoolean("is_rider", false)
+                        // Capture the driver's XMR address so we can use it at TRIP_COMPLETED.
+                        // The driver includes their address when sending is_rider=false.
+                        val driverAddr     = payload.optString("address", "")
+                        if (!isRider && driverAddr.isNotEmpty()) {
+                            currentDriverXmrAddress = driverAddr
+                            Log.d(TAG, "Captured driver XMR address: ${driverAddr.take(16)}…")
+                        }
                         // is_rider flag identifies the SENDER (driver sends is_rider=false)
                         // Rider device should fund the escrow (fareAtomic > 0);
                         // driver device receives is_rider=true (sent by rider) → no funding.
                         // fare_xmr in the message is display millicents — convert to piconero.
                         val fundAmt = if (isRider) 0L
                             else com.techducat.kabusquared.network.FareEstimator.toAtomicUnits(fareMillicents)
-                        if (peerInfo.isNotEmpty()) {
+                        if (peerInfo.isNotEmpty() && ::rideWalletManager.isInitialized) {
                             rideWalletManager.finalizeEscrowWithPeer(peerInfo, fundAmt)
                         }
                     }
@@ -583,6 +599,15 @@ class MainActivity :
             when (event.eventType) {
                 TripEventType.TRIP_COMPLETED -> {
                     tvStatus.text = getString(R.string.event_trip_completed)
+                    if (!::rideWalletManager.isInitialized) {
+                        Log.w(TAG, "TRIP_COMPLETED received before wallet init — cannot release escrow")
+                        return@runOnUiThread
+                    }
+                    if (currentDriverXmrAddress.isEmpty()) {
+                        Log.w(TAG, "TRIP_COMPLETED: driver XMR address unknown — cannot release escrow")
+                        tvStatus.text = "Trip completed but driver address unavailable — contact support"
+                        return@runOnUiThread
+                    }
                     // Release escrow to driver — rider is first signer
                     rideWalletManager.onTripCompleted(
                         event               = event,
@@ -604,6 +629,10 @@ class MainActivity :
                 }
                 TripEventType.TRIP_CANCELLED -> {
                     tvStatus.text = getString(R.string.event_trip_cancelled)
+                    if (!::rideWalletManager.isInitialized) {
+                        Log.w(TAG, "TRIP_CANCELLED received before wallet init — cannot refund escrow")
+                        return@runOnUiThread
+                    }
 
                     // Build the onNeedPeerSignature callback once — reused by both branches.
                     // The rider is the first signer on a refund: export partial images and send

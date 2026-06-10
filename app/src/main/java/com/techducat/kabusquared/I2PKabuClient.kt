@@ -410,7 +410,12 @@ class I2PKabuClient(private val context: Context) {
         scope.launch {
             while (isActive && connected.get()) {
                 try {
-                    val line = reader?.readLine() ?: break
+                    val line = reader?.readLine()
+                    if (line == null) {
+                        // EOF — service socket closed; attempt reconnect
+                        if (isActive) { Log.w(TAG, "Service closed connection — reconnecting"); attemptReconnect() }
+                        break
+                    }
                     if (line.isNotBlank()) {
                         try { handleIncoming(JSONObject(line)) }
                         catch (e: Exception) { Log.w(TAG, "Parse error: ${e.message}") }
@@ -446,6 +451,12 @@ class I2PKabuClient(private val context: Context) {
             val delay = RECONNECT_BASE_DELAY * (1L shl reconnectCount.coerceAtMost(5))
             Log.i(TAG, "Reconnecting in ${delay}ms (attempt ${reconnectCount + 1})")
             delay(delay)
+            // If another initialize() call is already in-flight (e.g. from the UI layer),
+            // don't count this as a failed attempt — just wait and check again next cycle.
+            if (initializing.get()) {
+                Log.d(TAG, "attemptReconnect: initialize already in flight — skipping increment")
+                return
+            }
             reconnectCount++
             val ok = initialize(deviceId, currentGeohash, currentRole)
             // Reset the counter on success so future disconnects start fresh
