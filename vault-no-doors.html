@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Vault Has No Doors: Can I2P Become the De Facto Standard for Financial Apps?</title>
+
+<!-- SEO -->
+<meta name="description" content="Part 2 of the Ghost Architecture series — a technical and honest look at whether I2P can secure financial apps at scale: protocol strengths, weaknesses, competing anonymity networks, and recent breaches it could have prevented.">
+<meta name="author" content="niyid">
+<meta name="keywords" content="I2P, financial security, fintech breaches, Tor, Monero, garlic routing, privacy engineering, Techducat, post-quantum, anonymity network">
+
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Vault Has No Doors: Can I2P Become the De Facto Standard for Financial Apps?">
+<meta property="og:description" content="Ghost Architecture, Part 2 — I2P's real strengths and weaknesses, how it stacks up against Tor, and the recent fintech breaches a serverless architecture would have made structurally impossible.">
+<meta property="og:url" content="https://niyid.github.io/kabu-kabu-p2p/vault-no-doors.html">
+<meta property="og:site_name" content="Techducat">
+<meta property="article:author" content="https://github.com/niyid">
+
+<!-- Twitter/X Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Vault Has No Doors: Can I2P Become the De Facto Standard for Financial Apps?">
+<meta name="twitter:description" content="Part 2 of Ghost Architecture — an honest audit of I2P for financial-grade privacy, versus Tor, versus the breach-prone status quo.">
+
+<!-- Canonical -->
+<link rel="canonical" href="https://niyid.github.io/kabu-kabu-p2p/vault-no-doors.html">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg:           #06080d;
+    --surface:      #0c1018;
+    --panel:        #101520;
+    --border:       #1c2433;
+    --border-hi:    #2a3a52;
+    --emerald:      #10b981;
+    --emerald-dim:  rgba(16,185,129,0.15);
+    --amber:        #f59e0b;
+    --amber-dim:    rgba(245,158,11,0.12);
+    --red:          #ef4444;
+    --red-dim:      rgba(239,68,68,0.12);
+    --blue:         #60a5fa;
+    --blue-dim:     rgba(96,165,250,0.12);
+    --violet:       #a78bfa;
+    --text:         #e2e8f0;
+    --muted:        #64748b;
+    --muted-hi:     #94a3b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.75;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(16,185,129,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16,185,129,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  .series-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    margin-bottom: 24px;
+  }
+
+  .series-tag a { color: var(--emerald); text-decoration: none; }
+  .series-tag a:hover { text-decoration: underline; }
+
+  .hero {
+    padding: 64px 0 64px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 64px;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    margin-bottom: 28px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: var(--emerald);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(34px, 5.6vw, 62px);
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 28px;
+  }
+
+  h1 .accent { color: var(--emerald); }
+  h1 .italic { font-style: italic; }
+
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+  .hero-meta .sep { color: var(--border-hi); }
+
+  .hero-lead {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--muted-hi);
+    line-height: 1.7;
+    max-width: 680px;
+    border-left: 3px solid var(--emerald);
+    padding-left: 20px;
+  }
+
+  section { margin-bottom: 72px; }
+
+  .section-kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-kicker::after {
+    content: '';
+    display: block;
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(24px, 3.5vw, 36px);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin-bottom: 24px;
+  }
+
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 18px; color: var(--muted-hi); }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--text); font-weight: 500; }
+
+  .pull-quote {
+    background: var(--emerald-dim);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-left: 4px solid var(--emerald);
+    border-radius: 0 8px 8px 0;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+
+  .pull-quote p {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  .pull-quote cite {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--emerald);
+    text-transform: uppercase;
+  }
+
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  @media (max-width: 600px) { .pillars-grid { grid-template-columns: 1fr; } }
+
+  .pillar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .pillar:hover { border-color: var(--border-hi); }
+  .pillar-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+
+  .pillar-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .pillar h3 { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
+  .pillar p { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 0; }
+
+  .pillar-emerald { border-left: 3px solid var(--emerald); }
+  .pillar-amber   { border-left: 3px solid var(--amber); }
+  .pillar-blue    { border-left: 3px solid var(--blue); }
+  .pillar-red     { border-left: 3px solid var(--red); }
+  .pillar-violet  { border-left: 3px solid var(--violet); }
+
+  .flow-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    margin: 32px 0;
+  }
+
+  .flow-steps-list { display: flex; flex-direction: column; gap: 0; position: relative; margin-top: 8px; }
+
+  .flow-step {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .flow-step:last-child { border-bottom: none; }
+
+  .flow-step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+
+  .step-emerald { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(16,185,129,0.3); }
+  .step-amber   { background: var(--amber-dim);   color: var(--amber);   border: 1px solid rgba(245,158,11,0.3); }
+  .step-blue    { background: var(--blue-dim);     color: var(--blue);    border: 1px solid rgba(96,165,250,0.3); }
+  .step-red     { background: var(--red-dim);      color: var(--red);     border: 1px solid rgba(239,68,68,0.3); }
+  .step-violet  { background: rgba(167,139,250,0.12); color: var(--violet); border: 1px solid rgba(167,139,250,0.3); }
+
+  .flow-step-content strong { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .flow-step-content p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.55; }
+
+  /* ─── STAT STRIP ──────────────────────────────────────────────── */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  @media (max-width: 600px) { .stat-strip { grid-template-columns: 1fr; } }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--emerald);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+  }
+
+  /* ─── BREACH CARDS ────────────────────────────────────────────── */
+  .breach-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin: 20px 0;
+  }
+
+  .breach-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .breach-name { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: var(--text); }
+
+  .breach-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .breach-card p { font-size: 13.5px; margin-bottom: 10px; }
+
+  .breach-fix {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--emerald-dim);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 12px;
+  }
+
+  .breach-fix span.tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--emerald);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .breach-fix p { font-size: 13px; margin: 0; color: var(--text); }
+
+  /* ─── COMPARISON CARDS ────────────────────────────────────────── */
+  .compare-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 28px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .compare-header {
+    display: grid;
+    grid-template-columns: 160px 1fr 1fr;
+    background: var(--panel);
+    border-bottom: 2px solid var(--border-hi);
+  }
+
+  .compare-header-cell {
+    padding: 12px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .compare-header-cell:nth-child(1) { color: var(--muted); }
+  .compare-header-cell:nth-child(2) { color: var(--blue); border-left: 1px solid var(--border); }
+  .compare-header-cell:nth-child(3) { color: var(--emerald); border-left: 1px solid var(--border); }
+
+  .compare-row { display: grid; grid-template-columns: 160px 1fr 1fr; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row:hover { background: rgba(255,255,255,0.018); }
+
+  .compare-cell { padding: 14px 16px; font-size: 13.5px; line-height: 1.5; }
+  .compare-cell:nth-child(2), .compare-cell:nth-child(3) { border-left: 1px solid var(--border); }
+
+  .compare-cell.dim-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .compare-cell.bad  { color: #f87171; }
+  .compare-cell.good { color: #34d399; }
+  .compare-cell.mid  { color: var(--amber); }
+
+  @media (max-width: 580px) {
+    .compare-header { grid-template-columns: 1fr; }
+    .compare-header-cell:nth-child(1) { display: none; }
+    .compare-header-cell:nth-child(2), .compare-header-cell:nth-child(3) { border-left: none; border-top: 1px solid var(--border); }
+    .compare-row { grid-template-columns: 1fr; }
+    .compare-cell.dim-label { background: var(--panel); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 8px 16px 4px; }
+    .compare-cell:nth-child(2), .compare-cell:nth-child(3) { border-left: none; padding-top: 6px; padding-bottom: 6px; }
+    .compare-cell:nth-child(3) { padding-bottom: 14px; }
+  }
+
+  /* ─── TECH STACK PILLS ────────────────────────────────────────── */
+  .tech-stack { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+
+  .tech-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--muted-hi); letter-spacing: 0.05em; transition: border-color 0.2s, color 0.2s;
+  }
+
+  .tech-pill:hover { border-color: var(--border-hi); color: var(--text); }
+  .tech-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green  { background: var(--emerald); }
+  .dot-amber  { background: var(--amber); }
+  .dot-red    { background: var(--red); }
+  .dot-blue   { background: var(--blue); }
+  .dot-violet { background: var(--violet); }
+
+  /* ─── CALLOUT BOXES ───────────────────────────────────────────── */
+  .callout { border-radius: 8px; padding: 18px 20px; margin: 24px 0; display: flex; gap: 14px; align-items: flex-start; }
+  .callout-warn { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.25); }
+  .callout-info { background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.25); }
+  .callout-good { background: var(--emerald-dim); border: 1px solid rgba(16,185,129,0.25); }
+  .callout-bad  { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.25); }
+  .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body p { font-size: 13.5px; margin: 0; line-height: 1.6; }
+  .callout-body strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+  /* ─── ROADMAP TIMELINE ────────────────────────────────────────── */
+  .roadmap { margin: 32px 0; }
+
+  .roadmap-item {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .roadmap-item:last-child { border-bottom: none; }
+
+  .roadmap-when {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--emerald);
+    letter-spacing: 0.05em;
+    padding-top: 2px;
+  }
+
+  .roadmap-content { grid-column: 2; }
+  .roadmap-item h3 { font-size: 16px; margin-bottom: 6px; }
+  .roadmap-item p { font-size: 13.5px; margin: 0; }
+
+  /* ─── FOOTER ──────────────────────────────────────────────────── */
+  .article-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .footer-left p { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.05em; margin: 0 0 6px; }
+
+  .footer-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--emerald-dim); border: 1px solid rgba(16,185,129,0.3); border-radius: 6px;
+    padding: 10px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--emerald); text-decoration: none; letter-spacing: 0.08em; transition: background 0.2s;
+  }
+
+  .footer-link:hover { background: rgba(16,185,129,0.22); }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero { animation: fadeSlideUp 0.7s ease both; }
+  section { animation: fadeSlideUp 0.6s ease both; }
+  section:nth-child(2) { animation-delay: 0.1s; }
+  section:nth-child(3) { animation-delay: 0.15s; }
+  section:nth-child(4) { animation-delay: 0.2s; }
+
+  @media (max-width: 600px) {
+    .container { padding: 0 16px 64px; }
+    .hero { padding: 40px 0 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══ HERO ═══ -->
+  <header class="hero">
+    <div class="series-tag">GHOST ARCHITECTURE · PART 2 OF 2 · <a href="https://niyid.github.io/kabu-kabu-p2p/ghost-arch.html" target="_blank">Read Part 1 ↗</a></div>
+
+    <div class="hero-eyebrow">Financial Security · Anonymity Networks · Protocol Analysis</div>
+
+    <h1>
+      The Vault Has<br>
+      <span class="italic accent">No</span> Doors:<br>
+      Can I2P Become the<br>
+      Standard for <span class="accent">Financial</span> Apps?
+    </h1>
+
+    <div class="hero-meta">
+      <span>📅 August 2026</span>
+      <span class="sep">·</span>
+      <span>🔗 github.com/niyid/kabu-kabu-p2p</span>
+      <span class="sep">·</span>
+      <span>🌐 I2P · Protocol Analysis</span>
+      <span class="sep">·</span>
+      <span>⏱ 16 min read</span>
+    </div>
+
+    <p class="hero-lead">
+      Part 1 showed a serverless paradigm running in production. Part 2 asks the harder question:
+      is I2P actually good enough — technically, competitively, and politically — to become the
+      default substrate for how financial apps protect their users? The honest answer has caveats.
+    </p>
+  </header>
+
+  <!-- ═══ SECTION 1: WHY THIS QUESTION MATTERS NOW ═══ -->
+  <section>
+    <div class="section-kicker">The Stakes</div>
+    <h2>Every Breach Below Shared One Root Cause</h2>
+
+    <p>
+      2026 has been a brutal year for financial-sector security. Industry tracking shows finance-sector
+      breach volume climbing sharply quarter over quarter, and the ransomware groups that once
+      concentrated their effort on a handful of large banks have fragmented into dozens of smaller
+      operators, each targeting the weakest vendor in a long, opaque supply chain.
+    </p>
+
+    <div class="stat-strip">
+      <div class="stat-box">
+        <div class="stat-num">76%</div>
+        <div class="stat-label">rise in finance-sector breach incidents, Q1 2026 vs Q1 2025</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">48</div>
+        <div class="stat-label">distinct threat groups actively targeting financial institutions in 2025, up from 37 a year earlier</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">32</div>
+        <div class="stat-label">South Korean financial institutions compromised through a single managed-service-provider foothold</div>
+      </div>
+    </div>
+
+    <p>
+      Every incident in this report — and nearly every one described later in this article — traces
+      back to the same structural fact: <strong>the data existed somewhere a determined attacker
+      could eventually reach it.</strong> A central database, a vendor's cloud bucket, an offboarded
+      employee's still-live credential, a third-party API with more access than it needed. I2P's
+      relevance to finance isn't that it makes transactions faster or cheaper — it's that a serverless,
+      garlic-routed architecture removes the single point that every one of these breaches depended on.
+    </p>
+  </section>
+
+  <!-- ═══ SECTION 2: CURRENT STATE-OF-THE-ART WEAKNESSES ═══ -->
+  <section>
+    <div class="section-kicker">Root Causes</div>
+    <h2>What's Actually Wrong With Financial Apps Today</h2>
+
+    <p>
+      Before I2P can be pitched as a fix, it's worth being precise about what's broken. Four patterns
+      recur across nearly every major fintech and banking breach of the past two years.
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-red">1</div>
+          <div class="flow-step-content">
+            <strong>Centralised data lakes as a single point of failure</strong>
+            <p>Banks and fintechs still aggregate names, SSNs, account numbers, and transaction
+            histories into large central stores because that's how relational architecture and
+            regulatory reporting have always worked. One successful intrusion yields millions of
+            complete identity profiles at once, rather than fragments.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">2</div>
+          <div class="flow-step-content">
+            <strong>Third-party and vendor sprawl</strong>
+            <p>Modern financial products are assembled from a dozen vendors — data analytics firms,
+            benefits administrators, cloud file-transfer tools, managed service providers. Each one
+            is a new attack surface with access the end user never consented to and often doesn't
+            know exists.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-blue">3</div>
+          <div class="flow-step-content">
+            <strong>Offboarding and credential lifecycle failures</strong>
+            <p>Departed employees or contractors retaining live access for months is a recurring
+            vector — not a hypothetical one. Standing credentials with broad reporting access are a
+            liability that persists long after the person who requested them has left.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-violet">4</div>
+          <div class="flow-step-content">
+            <strong>Slow, compliance-driven disclosure</strong>
+            <p>Breach notification windows measured in weeks, not hours, mean stolen identity data
+            is already circulating before affected users can act. This isn't a technology failure by
+            itself, but it compounds every other weakness on this list.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>The uncomfortable part</strong>
+        <p>None of these four patterns are exotic zero-days. They're organisational and architectural
+        defaults — the industry keeps building the same centralised target and then acting surprised
+        when it's hit. A protocol-level fix only works if it's paired with a willingness to stop
+        building that target in the first place.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 3: RECENT BREACHES I2P COULD HAVE PREVENTED ═══ -->
+  <section>
+    <div class="section-kicker">Case Studies</div>
+    <h2>Recent Breaches a Serverless I2P Architecture Would Have Defeated</h2>
+
+    <p>
+      These aren't hypothetical. Each of the following happened in the past eighteen months, and
+      each one depended on the existence of a central, developer-controlled store of user data —
+      exactly the thing Ghost Architecture eliminates by design.
+    </p>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Evolve Bank &amp; Trust</div>
+        <div class="breach-date">Mid-2024 · LockBit ransomware</div>
+      </div>
+      <p>
+        A ransomware group breached Evolve's systems and, after the bank refused to pay, published
+        names, Social Security numbers, bank account numbers, dates of birth, and contact details.
+        Because Evolve operated as banking-as-a-service infrastructure behind numerous fintech apps,
+        the blast radius extended to customers who had never directly interacted with Evolve at all.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>In a serverless, on-device model, there is no equivalent central "banking-as-a-service"
+        database for a ransomware group to encrypt and exfiltrate — the data was never aggregated
+        upstream of the app in the first place.</p>
+      </div>
+    </div>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Marquis (bank analytics vendor)</div>
+        <div class="breach-date">August 2025 · Ransomware</div>
+      </div>
+      <p>
+        A data analytics vendor serving hundreds of banks was compromised, exposing names, addresses,
+        card numbers, and Social Security numbers for over 672,000 people across multiple regions —
+        none of whom had a direct relationship with Marquis, only with the banks that fed it their data.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>A third-party analytics vendor has nothing to analyse if raw customer data never leaves the
+        device. Aggregate, privacy-preserving statistics could still be computed via local
+        differential privacy without ever centralising raw records.</p>
+      </div>
+    </div>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Figure Technology Solutions</div>
+        <div class="breach-date">Early 2026 · ShinyHunters</div>
+      </div>
+      <p>
+        A blockchain-based lending platform disclosed a breach affecting close to a million customers,
+        exposing names, dates of birth, addresses, phone numbers, and emails — a stark reminder that
+        "blockchain-based" does not mean "serverless," and that on-chain settlement can still sit on
+        top of a conventional, centrally-breachable customer database.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>This is the clearest illustration of the point: using a blockchain for settlement says
+        nothing about where identity data lives. Pairing on-chain or Monero-style settlement with
+        an I2P-routed, on-device identity layer closes exactly this gap.</p>
+      </div>
+    </div>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Infosys McCamish / Allianz Life</div>
+        <div class="breach-date">Disclosed 2024–2025 · Class action settled 2025</div>
+      </div>
+      <p>
+        A downstream processing vendor exposed names, addresses, dates of birth, and Social Security
+        numbers for millions of insurance and brokerage customers, resulting in a roughly $17.5 million
+        settlement covering 6.5 million affected people.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>Policy administration and claims processing don't inherently require a central copy of raw
+        PII — selective disclosure via cryptographic proofs (see Section 5) can let a processor verify
+        eligibility without ever holding the underlying record.</p>
+      </div>
+    </div>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Block / Cash App offboarding failure</div>
+        <div class="breach-date">Disclosed 2022, litigated into 2025</div>
+      </div>
+      <p>
+        A former employee retained the ability to pull reports on millions of brokerage customers
+        months after leaving the company — exposing portfolio holdings and account numbers ideal for
+        targeted social engineering, discovered only months after the fact.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>There is no internal reporting tool to misuse when there is no internal database to report
+        from. Offboarding failures are a category of risk that a serverless architecture removes
+        structurally rather than procedurally.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>What I2P alone would not have stopped</strong>
+        <p>Phishing-driven credential theft (National Bank of Asia) and employee social engineering
+        still work against humans regardless of network architecture. I2P hardens the network layer;
+        it does not replace security awareness training, hardware key-based MFA, or endpoint hygiene.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 4: I2P PROTOCOL — STRENGTHS AND WEAKNESSES ═══ -->
+  <section>
+    <div class="section-kicker">Protocol Analysis</div>
+    <h2>I2P Today: What's Actually Strong, What Isn't Yet</h2>
+
+    <p>
+      I2P's core design choices are genuinely well-suited to financial-grade privacy, but "well-suited"
+      is not the same as "finished." A fair audit has to hold both at once.
+    </p>
+
+    <div class="pillars-grid">
+      <div class="pillar pillar-emerald">
+        <span class="pillar-icon">✅</span>
+        <div class="pillar-name">Strength</div>
+        <h3>Unidirectional garlic-routed tunnels</h3>
+        <p>Inbound and outbound traffic travel different paths, and multiple messages are bundled
+        into a single encrypted "garlic" — a structural defence against the traffic-correlation
+        attacks that have historically de-anonymised Tor circuits.</p>
+      </div>
+      <div class="pillar pillar-emerald">
+        <span class="pillar-icon">✅</span>
+        <div class="pillar-name">Strength</div>
+        <h3>No central directory authorities</h3>
+        <p>I2P's network map is maintained by a self-organising, rotating set of floodfill routers
+        rather than a fixed set of directory authorities — removing the coordination points that
+        represent a legal or technical pressure point in Tor's design.</p>
+      </div>
+      <div class="pillar pillar-emerald">
+        <span class="pillar-icon">✅</span>
+        <div class="pillar-name">Strength</div>
+        <h3>Deeper hop count by default</h3>
+        <p>A full I2P round trip uses twelve hops (six inbound, six outbound) versus Tor's six-hop
+        hidden-service circuit, producing stronger unlinkability at the cost of some latency —
+        an entirely reasonable trade for financial workloads that are not latency-sensitive.</p>
+      </div>
+      <div class="pillar pillar-amber">
+        <span class="pillar-icon">⚠️</span>
+        <div class="pillar-name">Weakness</div>
+        <h3>Small network, weaker anonymity set</h3>
+        <p>I2P's active router count has grown from roughly 25,800 in early 2019 to about 72,600 by
+        April 2025 — real growth, but still a small fraction of Tor's userbase. Anonymity networks
+        get more anonymous as they get bigger; I2P's relative size is its biggest honest weakness.</p>
+      </div>
+      <div class="pillar pillar-amber">
+        <span class="pillar-icon">⚠️</span>
+        <div class="pillar-name">Weakness</div>
+        <h3>Timing analysis is still possible</h3>
+        <p>Garlic routing raises the cost of correlating sender and receiver, but a well-resourced
+        adversary controlling enough entry and exit points can still compare message timing and size
+        across a session. No overlay network fully solves this without heavy padding and latency cost.</p>
+      </div>
+      <div class="pillar pillar-red">
+        <span class="pillar-icon">🚧</span>
+        <div class="pillar-name">Gap</div>
+        <h3>No quantum-resistant cryptography yet</h3>
+        <p>Current tunnel and message encryption relies on ElGamal/AES, which is not post-quantum
+        secure. This matters specifically for financial data with decades-long confidentiality
+        requirements, where "harvest now, decrypt later" is a realistic threat model.</p>
+      </div>
+    </div>
+
+    <h3>The extensions that would matter most for finance</h3>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-emerald">1</div>
+          <div class="flow-step-content">
+            <strong>Post-quantum tunnel and signature crypto</strong>
+            <p>The I2P project has an active proposal to adopt NIST FIPS 203 and 204 (ML-KEM /
+            ML-DSA) across router identities, tunnel encryption, and stream/datagram signing, with a
+            rollout targeted from late 2025 through mid-2027. For financial data with a multi-decade
+            confidentiality horizon, this is not optional polish — it's a prerequisite for calling
+            I2P finance-grade.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-blue">2</div>
+          <div class="flow-step-content">
+            <strong>Garlic Routing V2 and tunnel-build hardening</strong>
+            <p>Proposed extensions to the tunnel-build message format add certificate-based
+            extensibility and reduce the metadata a hostile tunnel participant can infer, tightening
+            the network's resistance to the centrality-based and Sybil-style attacks that academic
+            research continues to probe.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">3</div>
+          <div class="flow-step-content">
+            <strong>Selective disclosure for compliance</strong>
+            <p>Nothing in I2P itself provides KYC/AML-compatible selective disclosure. Financial apps
+            built on it need a companion layer — zero-knowledge proofs or view-key-style mechanisms
+            (as ScrowIt! and Àjọ already use on the Monero side) — so a regulator or auditor can verify
+            a specific fact without the app operator holding a central copy of the underlying data.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-violet">4</div>
+          <div class="flow-step-content">
+            <strong>Mobile-grade bootstrapping and battery profile</strong>
+            <p>Embedding a full I2P router on a phone (as Kabu-Kabu and its siblings already do) is
+            proof of concept, not yet a mature pattern with standard tooling. A finance-grade SDK
+            needs first-class reseed reliability, background-execution limits handling, and
+            documented battery/data-usage benchmarks before mainstream fintechs will adopt it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 5: COMPETING TECHNOLOGIES ═══ -->
+  <section>
+    <div class="section-kicker">Competitive Landscape</div>
+    <h2>I2P vs. Tor vs. The Alternatives — Which Actually Wins?</h2>
+
+    <p>
+      I2P is not the only candidate for anonymising financial traffic. A fair comparison has to
+      include Tor, VPN-based approaches, and the "zero-trust cloud" model most fintechs already use.
+    </p>
+
+    <div class="compare-cards">
+      <div class="compare-header">
+        <div class="compare-header-cell">Property</div>
+        <div class="compare-header-cell">Tor</div>
+        <div class="compare-header-cell">I2P</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Routing model</div>
+        <div class="compare-cell">Onion routing, bidirectional circuits — request and reply share one path</div>
+        <div class="compare-cell good">Garlic routing, unidirectional tunnels — 12 hops per round trip</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Network coordination</div>
+        <div class="compare-cell mid">Nine fixed directory authorities</div>
+        <div class="compare-cell good">Self-organising Kademlia DHT, rotating floodfill routers</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Primary design goal</div>
+        <div class="compare-cell good">Anonymous outproxying to the clearnet — built to browse the open web anonymously</div>
+        <div class="compare-cell good">A self-contained anonymous network — built for services to live inside it</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Network size / maturity</div>
+        <div class="compare-cell good">Far larger user and relay base — bigger anonymity set</div>
+        <div class="compare-cell mid">~72,600 routers as of April 2025 — smaller anonymity set, growing steadily</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Known weak points</div>
+        <div class="compare-cell bad">Malicious exit nodes, timing analysis, DDoS exposure via fixed authorities</div>
+        <div class="compare-cell mid">Timing analysis still possible; smaller network means less traffic to hide in</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Mobile embeddability</div>
+        <div class="compare-cell mid">Possible via Orbot, but designed around a standalone client model</div>
+        <div class="compare-cell good">Designed to be embedded directly in an app — no separate install</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Best-suited use case</div>
+        <div class="compare-cell">Anonymous access to ordinary websites and services</div>
+        <div class="compare-cell">Peer-to-peer apps that live entirely inside the anonymous network — exactly the financial-app shape</div>
+      </div>
+    </div>
+
+    <p>
+      The honest verdict: <strong>Tor and I2P aren't really competing for the same job.</strong> Tor
+      optimises for anonymously reaching the ordinary internet; I2P optimises for services that never
+      need to leave the anonymous network at all. A financial app where two peers (or a peer and an
+      escrow arbitrator) transact entirely within the app is precisely the workload I2P was designed
+      for — which is why it's the better fit here, not because Tor is worse in general.
+    </p>
+
+    <div class="tech-stack">
+      <div class="tech-pill"><span class="dot dot-red"></span>VPN-based privacy — trusts one provider, single jurisdiction</div>
+      <div class="tech-pill"><span class="dot dot-amber"></span>Zero-trust cloud — reduces but doesn't eliminate central data</div>
+      <div class="tech-pill"><span class="dot dot-blue"></span>Public blockchain settlement — transparent by default, needs a privacy layer</div>
+      <div class="tech-pill"><span class="dot dot-green"></span>I2P + Monero — anonymised transport and private settlement, together</div>
+    </div>
+
+    <p>
+      VPNs simply relocate trust to a single company and jurisdiction rather than removing it. Public
+      blockchains solve custody but not privacy — a transparent ledger is a subpoena's best friend
+      unless it's paired with something like Monero's ring signatures. "Zero-trust" cloud architecture
+      is a genuine improvement over flat networks but still assumes a central data store exists;
+      it minimises blast radius rather than eliminating the target. I2P is the only option on this
+      list that removes the central store as a category.
+    </p>
+  </section>
+
+  <!-- ═══ SECTION 6: WHAT DE FACTO STANDARD WOULD ACTUALLY REQUIRE ═══ -->
+  <section>
+    <div class="section-kicker">The Path Forward</div>
+    <h2>What It Would Actually Take to Become "The Standard"</h2>
+
+    <p>
+      Good technology doesn't become a de facto standard by being good — it becomes one by being
+      easy to adopt, defensible to regulators, and boring enough that engineering teams choose it
+      without a fight. I2P is closer to the first than the other two.
+    </p>
+
+    <div class="roadmap">
+      <div class="roadmap-item">
+        <div class="roadmap-when">Now</div>
+        <div class="roadmap-content">
+        <h3>Reference SDKs, not raw router jars</h3>
+        <p>The Techducat ecosystem's SAM-bridge pattern — a plain TCP socket so app code never
+        touches I2P internals — is the right shape. That pattern needs to become a published,
+        versioned, documented SDK that any Android or iOS team can drop in without reading I2P's
+        internal protocol specs first.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-when">2025–27</div>
+        <div class="roadmap-content">
+        <h3>Ship post-quantum crypto on schedule</h3>
+        <p>The FIPS 203/204 rollout already in progress is the single highest-leverage protocol
+        change for financial credibility. A network claiming to protect account data needs a
+        credible answer to "what happens when today's ciphertext is harvested and decrypted in a
+        decade" — and soon it will have one.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-when">Ongoing</div>
+        <div class="roadmap-content">
+        <h3>A compliance story that isn't "just trust us"</h3>
+        <p>Regulators will not accept "we can't see the data" as a complete answer to AML and KYC
+        obligations. The paradigm needs a standard selective-disclosure pattern — proofs of
+        eligibility, sanctions-list, or age checks that don't require centralising the underlying
+        record — built and documented once, then reused across every app in the ecosystem.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-when">Ongoing</div>
+        <div class="roadmap-content">
+        <h3>Independent security audits, published</h3>
+        <p>Every app in the Techducat ecosystem making this claim needs a third-party audit trail,
+        not just an architecture diagram. "Serverless by design" is a strong claim; it should be
+        backed by the same rigour a bank would apply to a core banking vendor.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-when">Longer term</div>
+        <div class="roadmap-content">
+        <h3>Regulatory engagement, not regulatory avoidance</h3>
+        <p>A privacy-by-architecture fintech sector will eventually need its own conversation with
+        regulators — comparable to how the Travel Rule shaped crypto exchange compliance — rather
+        than assuming anonymity alone is a durable strategy against a sector this heavily supervised.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-bad">
+      <div class="callout-icon">🚫</div>
+      <div class="callout-body">
+        <strong>What could stop this from ever becoming standard</strong>
+        <p>Regulatory friction is the real risk, not technical failure. A network designed to make
+        financial surveillance structurally impossible will draw scrutiny in exactly the jurisdictions
+        with the strongest AML regimes. The paradigm's long-term viability depends as much on solving
+        the compliance-without-custody problem as on any protocol improvement.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 7: WHAT PART 1 DIDN'T COVER ═══ -->
+  <section>
+    <div class="section-kicker">Additional Considerations</div>
+    <h2>What Else Belongs in This Conversation</h2>
+
+    <div class="pillars-grid">
+      <div class="pillar pillar-blue">
+        <span class="pillar-icon">🔑</span>
+        <div class="pillar-name">Key loss = fund loss</div>
+        <h3>No password reset, ever</h3>
+        <p>Non-custodial by design means there is no "forgot password" flow. A lost device or seed
+        phrase is unrecoverable by construction. Any de facto standard needs a widely-adopted social
+        or Shamir-style recovery pattern, or it will lose to custodial competitors on this alone.</p>
+      </div>
+      <div class="pillar pillar-amber">
+        <span class="pillar-icon">📶</span>
+        <div class="pillar-name">Bandwidth reality</div>
+        <h3>I2P assumes a decent connection</h3>
+        <p>Twelve-hop tunnels cost latency and data. In markets with constrained or metered mobile
+        data — a real constraint in much of the Techducat team's own operating context — this is a
+        genuine adoption barrier, not a footnote.</p>
+      </div>
+      <div class="pillar pillar-violet">
+        <span class="pillar-icon">🏛️</span>
+        <div class="pillar-name">Institutional inertia</div>
+        <h3>Banks don't rewrite core systems casually</h3>
+        <p>Incumbent financial institutions run systems with decades of compliance history behind
+        them. I2P-based architecture is far more likely to win first among fintech challengers and
+        the unbanked/underbanked segment than to displace core banking infrastructure directly.</p>
+      </div>
+      <div class="pillar pillar-emerald">
+        <span class="pillar-icon">🧪</span>
+        <div class="pillar-name">Verifiability</div>
+        <h3>Reproducible builds matter more here than anywhere</h3>
+        <p>A privacy claim nobody can verify is just a marketing claim. F-Droid-style reproducible
+        builds — already part of the Techducat pattern — need to become the norm, so users (and
+        auditors) can confirm the shipped binary matches the published source.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 8: CONCLUSION ═══ -->
+  <section>
+    <div class="section-kicker">Conclusion</div>
+    <h2>Not a Silver Bullet — But the Right Direction</h2>
+
+    <p>
+      I2P will not single-handedly end fintech breaches. It doesn't stop phishing, doesn't fix
+      offboarding processes by itself, and doesn't yet have a mature answer to post-quantum
+      cryptography or regulatory-compliant selective disclosure. Those gaps are real and worth
+      naming plainly rather than glossing over.
+    </p>
+
+    <p>
+      But look back at the five breaches in Section 3: Evolve, Marquis, Figure, Infosys McCamish,
+      Block. Every single one depended on a central store of user data existing somewhere a developer,
+      vendor, or attacker could reach it. That is precisely the assumption I2P-based, serverless
+      architecture refuses to make. The protocol has real, documented weaknesses — but they're
+      weaknesses of degree (network size, timing-analysis resistance, PQ readiness), not weaknesses
+      of category. The industry's weaknesses are weaknesses of category: centralise first, secure
+      later, hope the vendor didn't get breached.
+    </p>
+
+    <div class="pull-quote">
+      <p>A vault with no doors can't be broken into. It also can't be audited by looking through the
+      keyhole. Getting both — privacy and verifiability — right is the actual unsolved problem.</p>
+      <cite>— Article summary</cite>
+    </div>
+
+    <p>
+      The path to "de facto standard" runs through better tooling, on-schedule post-quantum crypto,
+      a credible compliance story, and — most of all — enough independently-audited apps in
+      production that the pattern stops looking experimental and starts looking obvious. Kabu-Kabu,
+      ScrowIt!, and Àjọ are three data points. The next few years will show whether the rest of the
+      industry treats them as a curiosity or a blueprint.
+    </p>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="article-footer">
+    <div class="footer-left">
+      <p>SERIES</p>
+      <p style="margin-bottom: 12px; color: var(--muted-hi)">Ghost Architecture, Part 1 &amp; 2</p>
+      <p>SOURCE REPOSITORY</p>
+      <p style="margin-bottom: 12px; color: var(--muted-hi)">github.com/niyid/kabu-kabu-p2p</p>
+      <p>LICENCE · OPEN SOURCE</p>
+    </div>
+    <a class="footer-link" href="https://github.com/niyid/kabu-kabu-p2p" target="_blank">
+      ↗ View on GitHub
+    </a>
+  </footer>
+
+</div>
+</body>
+</html>
