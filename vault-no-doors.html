@@ -611,11 +611,11 @@
     <div class="stat-strip">
       <div class="stat-box">
         <div class="stat-num">76%</div>
-        <div class="stat-label">rise in finance-sector breach incidents, Q1 2026 vs Q1 2025</div>
+        <div class="stat-label">rise in direct ransomware attacks on financial institutions, Q1 2026 vs Q1 2025</div>
       </div>
       <div class="stat-box">
         <div class="stat-num">48</div>
-        <div class="stat-label">distinct threat groups actively targeting financial institutions in 2025, up from 37 a year earlier</div>
+        <div class="stat-label">distinct threat groups actively targeting financial institutions in 2025, up from 37 in 2023 and 45 in 2024</div>
       </div>
       <div class="stat-box">
         <div class="stat-num">32</div>
@@ -767,13 +767,14 @@
 
     <div class="breach-card">
       <div class="breach-head">
-        <div class="breach-name">Infosys McCamish / Allianz Life</div>
-        <div class="breach-date">Disclosed 2024–2025 · Class action settled 2025</div>
+        <div class="breach-name">Infosys McCamish Systems</div>
+        <div class="breach-date">Breach Nov 2023 · LockBit · Settlement finalized Dec 2025</div>
       </div>
       <p>
-        A downstream processing vendor exposed names, addresses, dates of birth, and Social Security
-        numbers for millions of insurance and brokerage customers, resulting in a roughly $17.5 million
-        settlement covering 6.5 million affected people.
+        A downstream policy-administration vendor for life insurance and retirement products was hit
+        by LockBit ransomware, exposing names, addresses, dates of birth, and Social Security numbers
+        for 6.5 million people across its client banks and insurers, leading to a $17.5 million
+        class-action settlement.
       </p>
       <div class="breach-fix">
         <span class="tag">✓ Fix</span>
@@ -785,13 +786,32 @@
 
     <div class="breach-card">
       <div class="breach-head">
-        <div class="breach-name">Block / Cash App offboarding failure</div>
-        <div class="breach-date">Disclosed 2022, litigated into 2025</div>
+        <div class="breach-name">Allianz Life</div>
+        <div class="breach-date">July 2025 · Scattered Spider / ShinyHunters</div>
       </div>
       <p>
-        A former employee retained the ability to pull reports on millions of brokerage customers
-        months after leaving the company — exposing portfolio holdings and account numbers ideal for
-        targeted social engineering, discovered only months after the fact.
+        A social-engineering attack against a third-party, cloud-hosted CRM system exposed names,
+        addresses, dates of birth, and Social Security numbers for roughly 1.1–1.5 million customers,
+        financial professionals, and employees — while Allianz's own core policy systems were never
+        touched.
+      </p>
+      <div class="breach-fix">
+        <span class="tag">✓ Fix</span>
+        <p>The CRM itself was the target because it was the one place all of that identity data sat in
+        one aggregated, queryable form. Remove the central CRM copy and a compromised support-desk
+        login has nothing worth taking.</p>
+      </div>
+    </div>
+
+    <div class="breach-card">
+      <div class="breach-head">
+        <div class="breach-name">Block / Cash App offboarding failure</div>
+        <div class="breach-date">Breach Dec 2021 · Disclosed Apr 2022 · Litigated into 2025</div>
+      </div>
+      <p>
+        A former employee accessed and downloaded internal reports on 8.2 million current and former
+        Cash App Investing customers after their employment had ended — exposing full names, brokerage
+        account numbers, and for some customers, portfolio holdings and trading activity.
       </p>
       <div class="breach-fix">
         <span class="tag">✓ Fix</span>
@@ -881,11 +901,13 @@
           <div class="flow-step-num step-emerald">1</div>
           <div class="flow-step-content">
             <strong>Post-quantum tunnel and signature crypto</strong>
-            <p>The I2P project has an active proposal to adopt NIST FIPS 203 and 204 (ML-KEM /
-            ML-DSA) across router identities, tunnel encryption, and stream/datagram signing, with a
-            rollout targeted from late 2025 through mid-2027. For financial data with a multi-decade
-            confidentiality horizon, this is not optional polish — it's a prerequisite for calling
-            I2P finance-grade.</p>
+            <p>The I2P project has an active proposal to adopt NIST FIPS 203 (ML-KEM) for hybrid
+            tunnel and message encryption, with a rollout targeted from late 2025 through mid-2027.
+            FIPS 204 (ML-DSA) signature support is on a slower, separate track — the proposal itself
+            says that work is on hold until late 2027 or 2028, pending further standards-body guidance
+            on key and signature sizes. For financial data with a multi-decade confidentiality
+            horizon, closing both gaps — not just encryption — is a prerequisite for calling I2P
+            finance-grade.</p>
           </div>
         </div>
         <div class="flow-step">
@@ -965,8 +987,8 @@
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">Mobile embeddability</div>
-        <div class="compare-cell mid">Possible via Orbot, but designed around a standalone client model</div>
-        <div class="compare-cell good">Designed to be embedded directly in an app — no separate install</div>
+        <div class="compare-cell mid">C-Tor was built as a standalone SOCKS proxy; Arti, Tor's Rust rewrite, is explicitly designed as an embeddable library, with early mobile bindings</div>
+        <div class="compare-cell mid">Not originally designed for embedding either — I2P's own docs call an Android router library a roadmap item — but a full I2P Android app and the Java client library make it achievable today, as the Techducat apps demonstrate</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">Best-suited use case</div>
@@ -1128,8 +1150,8 @@
     </p>
 
     <p>
-      But look back at the five breaches in Section 3: Evolve, Marquis, Figure, Infosys McCamish,
-      Block. Every single one depended on a central store of user data existing somewhere a developer,
+      But look back at the six breaches in Section 3: Evolve, Marquis, Figure, Infosys McCamish,
+      Allianz Life, Block. Every single one depended on a central store of user data existing somewhere a developer,
       vendor, or attacker could reach it. That is precisely the assumption I2P-based, serverless
       architecture refuses to make. The protocol has real, documented weaknesses — but they're
       weaknesses of degree (network size, timing-analysis resistance, PQ readiness), not weaknesses
