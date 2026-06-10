@@ -6,25 +6,25 @@
 <title>Ghost Architecture: A Blueprint for Apps That Can't Betray Their Users</title>
 
 <!-- SEO -->
-<meta name="description" content="A practical blueprint for serverless, surveillance-resistant mobile applications — illustrated by Kabu-Kabu and the Techducat ecosystem, built on I2P and Monero.">
+<meta name="description" content="A practical blueprint for serverless, surveillance-resistant mobile applications — how I2P and Monero combine into a replicable privacy paradigm, illustrated by Kabu-Kabu and the Techducat ecosystem.">
 <meta name="author" content="niyid">
-<meta name="keywords" content="privacy, I2P, Monero, GeoHash, P2P, open source, Android, surveillance, serverless, kabu-kabu, techducat">
+<meta name="keywords" content="privacy, I2P, Monero, GeoHash, P2P, open source, Android, serverless, surveillance, architecture, kabu-kabu, techducat">
 
 <!-- Open Graph (Substack, Facebook, LinkedIn link previews) -->
 <meta property="og:type" content="article">
 <meta property="og:title" content="Ghost Architecture: A Blueprint for Apps That Can't Betray Their Users">
-<meta property="og:description" content="A practical blueprint for serverless, surveillance-resistant mobile applications — illustrated by Kabu-Kabu and the Techducat ecosystem.">
-<meta property="og:url" content="https://niyid.github.io/kabu-kabu-p2p/ghost-architecture.html">
+<meta property="og:description" content="A replicable engineering paradigm for serverless, privacy-by-default mobile apps — built on I2P and Monero, illustrated by Kabu-Kabu and five other apps already live on Google Play.">
+<meta property="og:url" content="https://niyid.github.io/kabu-kabu-p2p/ghost-arch.html">
 <meta property="og:site_name" content="Kabu-Kabu P2P">
 <meta property="article:author" content="https://github.com/niyid">
 
 <!-- Twitter/X Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Ghost Architecture: A Blueprint for Apps That Can't Betray Their Users">
-<meta name="twitter:description" content="No servers. No GPS tracking. No payment trail. Five design principles behind a replicable paradigm for privacy-first mobile apps.">
+<meta name="twitter:description" content="The developer cannot betray their users' data because they never had it. A technical blueprint for serverless privacy, built on I2P and Monero.">
 
 <!-- Canonical -->
-<link rel="canonical" href="https://niyid.github.io/kabu-kabu-p2p/ghost-architecture.html">
+<link rel="canonical" href="https://niyid.github.io/kabu-kabu-p2p/ghost-arch.html">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
@@ -695,7 +695,7 @@
 
   <!-- ═══ HERO ═══ -->
   <header class="hero">
-    <div class="hero-eyebrow">Privacy Engineering · Serverless Architecture · P2P Systems</div>
+    <div class="hero-eyebrow">Privacy Engineering · Serverless Architecture · Decentralised Systems</div>
 
     <h1>
       <span class="italic accent">Ghost</span> Architecture:<br>
@@ -705,19 +705,18 @@
     </h1>
 
     <div class="hero-meta">
-      <span>📅 2026</span>
+      <span>📅 July 2026</span>
       <span class="sep">·</span>
       <span>🔗 github.com/niyid/kabu-kabu-p2p</span>
       <span class="sep">·</span>
-      <span>📱 Android · Kotlin · I2P · Monero</span>
+      <span>📱 Android · Kotlin</span>
       <span class="sep">·</span>
       <span>⏱ 14 min read</span>
     </div>
 
     <p class="hero-lead">
-      A practical blueprint for serverless, surveillance-resistant mobile applications —
-      illustrated by Kabu-Kabu and the Techducat ecosystem. Six apps, one paradigm: the
-      developer cannot betray their users' data, because they never held it.
+      A practical blueprint for serverless, surveillance-resistant mobile applications — illustrated
+      by Kabu-Kabu and the Techducat ecosystem. What if the server simply did not exist?
     </p>
 
     <svg class="ghost-hero" viewBox="0 0 160 200" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -732,25 +731,28 @@
   <!-- ═══ SECTION 1: THE PROBLEM ═══ -->
   <section>
     <div class="section-kicker">The Problem</div>
-    <h2>"Privacy" as a Marketing Label</h2>
+    <h2>The Problem With "Privacy" as a Marketing Label</h2>
 
     <p>
-      Most apps that claim to be privacy-respecting still route your data through a central
-      server owned by a company, in a jurisdiction with its own subpoena regime and
-      data-retention laws. Even end-to-end encrypted messengers typically rely on central
-      infrastructure to broker connections, store metadata, and manage keys. When that server
-      is compelled, hacked, or sold, your privacy disappears.
+      Most apps that claim to be privacy-respecting still route your data through a central server
+      owned by a company, in a jurisdiction with its own subpoena regime and data-retention laws.
+      Even end-to-end encrypted messengers typically rely on central infrastructure to broker
+      connections, store metadata, and manage keys. When that server is compelled, hacked, or sold,
+      your privacy disappears.
     </p>
 
-    <p>A quieter movement has been building a different answer: <strong>what if the server simply did not exist?</strong></p>
+    <p>
+      A quieter movement has been building a different answer: <strong>what if the server simply
+      did not exist?</strong>
+    </p>
 
     <p>
       This article explores a concrete engineering paradigm for building genuinely serverless,
       privacy-by-default mobile apps — one pioneered by a small developer studio based in Lagos,
       Nigeria, using two open-source primitives that have been battle-tested by the privacy
-      community: the <strong>I2P anonymity network</strong> and the <strong>Monero (XMR)</strong>
+      community: the <strong>I2P anonymity network</strong> and <strong>Monero (XMR)</strong>
       privacy cryptocurrency. We use <strong>Kabu-Kabu</strong>, an open-source P2P ride-hailing
-      app, as the primary technical case study, and survey five other apps already live on
+      app, as the primary technical case study, and survey three other apps already live on
       Google Play that implement the same paradigm.
     </p>
   </section>
@@ -765,38 +767,27 @@
         <span class="pillar-icon">🌐</span>
         <div class="pillar-name">Primitive 01</div>
         <h3>I2P — The Invisible Internet Project</h3>
-        <p>A fully encrypted, peer-to-peer overlay network resistant to traffic analysis. Unlike
-        Tor, which is optimised for reaching the clearnet, I2P is built for internal services —
-        apps that communicate exclusively within the network. Its core mechanism, <strong>garlic
-        routing</strong>, bundles multiple encrypted messages together, making sender/receiver
-        correlation far harder than onion routing.</p>
+        <p>A fully encrypted P2P overlay network resistant to traffic analysis. Its <strong>garlic
+        routing</strong> bundles multiple encrypted messages together, making sender/receiver
+        correlation far harder than Tor's onion routing. Critically, I2P can be embedded directly
+        into an Android app — no separate install, no VPN profile, no permission gymnastics.</p>
       </div>
-      <div class="pillar pillar-blue">
+      <div class="pillar pillar-violet">
         <span class="pillar-icon">🪙</span>
         <div class="pillar-name">Primitive 02</div>
         <h3>Monero — Privacy by Protocol</h3>
-        <p>A cryptocurrency in which privacy is mandatory, not optional. Ring signatures hide the
-        true sender among decoys, stealth addresses prevent linking outputs to a recipient, and
-        RingCT hides amounts by default. Multisig wallets lock funds under joint control, enabling
-        trustless escrow without a central custodian.</p>
+        <p>Every transaction uses ring signatures, stealth addresses, and RingCT to hide sender,
+        recipient, and amount by default — not as an option. Monero's <strong>multisig wallets</strong>
+        let funds be locked under joint control and released only by threshold consensus, enabling
+        trustless escrow, savings circles, and peer betting with no central custodian.</p>
       </div>
     </div>
 
     <p>
-      The crucial property for mobile developers is that I2P can be <strong>embedded directly
-      into an Android app</strong> as a Java library — no separate app install, no VPN profile,
-      no permission gymnastics. Your app <em>is</em> the I2P router. When the user opens the app,
-      a fully functional I2P node starts on-device and all peer communication is anonymised
-      automatically.
+      When the user opens an app built on I2P, a fully functional I2P node starts on-device,
+      connects to the network over the standard internet connection, and all subsequent peer
+      communication is anonymised automatically. The app <em>is</em> the router.
     </p>
-
-    <div class="tech-stack">
-      <div class="tech-pill"><span class="dot dot-green"></span> Ring signatures</div>
-      <div class="tech-pill"><span class="dot dot-green"></span> Stealth addresses</div>
-      <div class="tech-pill"><span class="dot dot-green"></span> RingCT</div>
-      <div class="tech-pill"><span class="dot dot-blue"></span> Multisig wallets</div>
-      <div class="tech-pill"><span class="dot dot-blue"></span> Garlic routing</div>
-    </div>
   </section>
 
   <!-- ═══ SECTION 3: FIVE DESIGN PRINCIPLES ═══ -->
@@ -804,7 +795,10 @@
     <div class="section-kicker">The Paradigm</div>
     <h2>Five Design Principles</h2>
 
-    <p>The apps covered in this article share a coherent set of design decisions that together constitute a replicable paradigm for privacy-first mobile development.</p>
+    <p>
+      The apps covered in this article share a coherent set of design decisions that together
+      constitute a replicable paradigm for privacy-first mobile development.
+    </p>
 
     <div class="flow-diagram">
       <div class="flow-steps-list">
@@ -812,35 +806,45 @@
           <div class="flow-step-num step-emerald">1</div>
           <div class="flow-step-content">
             <strong>No central server</strong>
-            <p>All communication happens between devices over I2P. There is no relay server, no cloud database, no API endpoint belonging to the developer. The developer cannot be compelled to hand over user data because they hold none.</p>
+            <p>All communication happens between devices over I2P. There is no relay server, no
+            cloud database, no API endpoint belonging to the developer. The developer cannot be
+            compelled to hand over user data because they hold none.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-blue">2</div>
           <div class="flow-step-content">
             <strong>On-device identity through one-way hashing</strong>
-            <p>User identifiers — typically a phone number or device ID — are SHA-256 hashed on-device before ever being used as a network identifier. The plaintext never leaves the phone.</p>
+            <p>User identifiers — typically a phone number or device ID — are SHA-256 hashed
+            on-device before ever being used as a network identifier. The plaintext never leaves
+            the phone.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-amber">3</div>
           <div class="flow-step-content">
             <strong>Fuzzy location, not precise GPS</strong>
-            <p>Where location is needed, raw GPS coordinates are immediately converted to a GeoHash cell — typically level 5, roughly 4.9 km × 4.9 km. The raw latitude/longitude is discarded and never transmitted.</p>
+            <p>Where location is needed, raw GPS coordinates are immediately converted to a
+            <strong>GeoHash-5 cell</strong> (~4.9 km × 4.9 km). The raw latitude/longitude is
+            discarded and never transmitted.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-violet">4</div>
           <div class="flow-step-content">
             <strong>Local-only persistence</strong>
-            <p>Trip records, incident reports, skill listings, and trade states are stored in on-device databases (Room / SQLite). No cloud backup — enforced at the manifest level via <code>backup_rules.xml</code> and <code>data_extraction_rules.xml</code>.</p>
+            <p>Trip records, incident reports, skill listings, and trade states are stored in
+            on-device databases (Room / SQLite). No cloud backup — enforced at the manifest level
+            via <code>backup_rules.xml</code> and <code>data_extraction_rules.xml</code>.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-red">5</div>
           <div class="flow-step-content">
             <strong>Monero for financial flows</strong>
-            <p>Where the app handles money, Monero's multisig capability ensures the developer never holds user funds, and transactions are private by protocol rather than by policy.</p>
+            <p>Where the app handles money, Monero's multisig capability ensures the developer
+            never holds user funds, and transactions are private by protocol rather than by
+            policy.</p>
           </div>
         </div>
       </div>
@@ -853,38 +857,35 @@
     <h2>Kabu-Kabu — Privacy-First P2P Ride-Hailing</h2>
 
     <p>
-      <a href="https://github.com/niyid/kabu-kabu-p2p" style="color: var(--emerald);" target="_blank">Kabu-Kabu</a>
-      is an open-source Android app for peer-to-peer taxi and courier matching, explicitly
-      designed to replace centralised ride-hailing platforms like Uber or Bolt with a serverless
-      alternative.
+      <a href="https://github.com/niyid/kabu-kabu-p2p" target="_blank" style="color: var(--emerald)">Kabu-Kabu</a>
+      is an open-source Android app for peer-to-peer taxi and courier matching, explicitly designed
+      to replace centralised ride-hailing platforms like Uber or Bolt with a serverless alternative.
     </p>
 
-    <h3>What traditional ride-hailing apps do</h3>
     <p>
       Every major ride-hailing platform is architecturally a surveillance system. Exact GPS
-      coordinates are continuously uploaded to a central server. Your real phone number is
-      stored and linked to every trip. The company can reconstruct your location history, travel
-      patterns, and social graph from this data — and third-party data brokers often receive a
-      share of it.
+      coordinates are continuously uploaded to a central server. Your real phone number is stored
+      and linked to every trip. The company can reconstruct your location history, travel patterns,
+      and social graph from this data — and third-party data brokers often receive a share of it.
     </p>
 
-    <h3>What Kabu-Kabu does instead</h3>
+    <h3 style="margin-top: 8px;">What Kabu-Kabu does instead</h3>
 
     <div class="compare-cards">
       <div class="compare-header">
         <div class="compare-header-cell">Concern</div>
-        <div class="compare-header-cell">Traditional approach</div>
-        <div class="compare-header-cell">Kabu-Kabu approach</div>
+        <div class="compare-header-cell">✕ Traditional approach</div>
+        <div class="compare-header-cell">✓ Kabu-Kabu approach</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">📍 Location data</div>
         <div class="compare-cell bad">Exact GPS uploaded to server</div>
-        <div class="compare-cell good">GeoHash-5 only; raw coords discarded immediately</div>
+        <div class="compare-cell good">GeoHash-5 only; raw coords discarded</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">🪪 Identity</div>
         <div class="compare-cell bad">Real phone number stored in DB</div>
-        <div class="compare-cell good">SHA-256 hash on-device; plaintext never leaves</div>
+        <div class="compare-cell good">SHA-256 hash; plaintext never leaves device</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">🌐 Network traffic</div>
@@ -893,8 +894,8 @@
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">🗄️ Trip history</div>
-        <div class="compare-cell bad">Stored in cloud database indefinitely</div>
-        <div class="compare-cell good">On-device Room database; retained 30 days</div>
+        <div class="compare-cell bad">Stored in cloud DB indefinitely</div>
+        <div class="compare-cell good">On-device Room DB; retained 30 days</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell dim-label">📤 Data sharing</div>
@@ -904,14 +905,13 @@
     </div>
 
     <h3>Technical architecture</h3>
-    <p>Kabu-Kabu's architecture illustrates how the paradigm is implemented in practice:</p>
 
     <div class="code-block">
       <div class="code-header">
-        <span>Kabu-Kabu — On-Device Architecture</span>
-        <span class="lang">Tree</span>
+        <span>Kabu-Kabu — Device-Local Architecture</span>
+        <span class="lang">Overview</span>
       </div>
-      <div class="code-body"><span class="cm">Rider/Driver device</span>
+      <div class="code-body">Rider/Driver device
 ├── MainActivity / DriverActivity
 │     └── I2PKabuClient  ──TCP(127.0.0.1:8881)──▶
 │                                                  I2PKabuService (foreground)
@@ -919,7 +919,7 @@
 │                                                  ├── Local TCP bridge
 │                                                  └── KabuDatabase (Room)
 │
-└── <span class="prop">Privacy layer:</span>
+└── Privacy layer:
       GeoHash-5 only (no raw GPS over network)
       SHA-256 device identity (no plaintext phone)
       I2P garlic routing (no IP exposure)
@@ -928,49 +928,36 @@
 
     <p>
       The <code>EmbeddedI2PRouter</code> manages the full I2P router lifecycle as a foreground
-      Android service. The <code>I2PKabuClient</code> connects to it via a local TCP socket,
-      making the I2P layer invisible to the application logic above it. Ride requests are
-      broadcast to peers within the same GeoHash cell; once a driver accepts, a direct I2P
-      tunnel is established for the trip itself.
-    </p>
-
-    <p>
-      The tech stack is deliberately mainstream: Kotlin, Hilt for dependency injection, Android
-      Room for persistence, OsmDroid for offline maps (no Google Maps API key required). The
-      only exotic dependency is the embedded I2P router JARs — meaning any competent Android
-      developer can read, audit, and fork the codebase.
+      Android service. The <code>I2PKabuClient</code> connects to it via a local TCP socket, making
+      the I2P layer invisible to the application logic above it. Ride requests are broadcast to
+      peers within the same GeoHash cell; once a driver accepts, a direct I2P tunnel is established
+      for the trip itself.
     </p>
 
     <div class="tech-stack">
-      <div class="tech-pill"><span class="dot dot-violet"></span> Kotlin · Hilt · Coroutines</div>
-      <div class="tech-pill"><span class="dot dot-green"></span> Android Room</div>
-      <div class="tech-pill"><span class="dot dot-blue"></span> OsmDroid</div>
-      <div class="tech-pill"><span class="dot dot-amber"></span> Embedded I2P JARs</div>
+      <div class="tech-pill"><span class="dot dot-green"></span> Kotlin</div>
+      <div class="tech-pill"><span class="dot dot-blue"></span> Hilt DI</div>
+      <div class="tech-pill"><span class="dot dot-amber"></span> Android Room</div>
+      <div class="tech-pill"><span class="dot dot-violet"></span> OsmDroid (no Google Maps key)</div>
+      <div class="tech-pill"><span class="dot dot-green"></span> Embedded I2P Router</div>
     </div>
 
     <div class="callout callout-info">
-      <div class="callout-icon">🗺️</div>
+      <div class="callout-icon">🎯</div>
       <div class="callout-body">
         <strong>Why this matters for ride-hailing specifically</strong>
-        <p>Ride-hailing data is among the most sensitive location data that exists. It records
-        where you live, where you work, where you worship, who you visit, and when. In
-        jurisdictions with authoritarian governance, this data can be used against users.
-        Kabu-Kabu's architecture means this data simply does not exist outside the user's own
-        device.</p>
+        <p>Ride-hailing data is among the most sensitive location data that exists — it records
+        where you live, work, worship, who you visit, and when. In jurisdictions with authoritarian
+        governance, this data can be used against users. Kabu-Kabu's architecture means this data
+        simply does not exist outside the user's own device.</p>
       </div>
     </div>
-
-    <p>
-      The roadmap includes XMR payment integration via an on-device Monero wallet — completing
-      the financial privacy layer — and an F-Droid reproducible build for users who do not want
-      to use Google Play at all.
-    </p>
   </section>
 
   <!-- ═══ SECTION 5: ECOSYSTEM ═══ -->
   <section>
     <div class="section-kicker">The Ecosystem</div>
-    <h2>Five Apps Already Live on Google Play</h2>
+    <h2>Three Apps Already Live on Google Play</h2>
 
     <p>
       Kabu-Kabu is the newest member of an already-deployed ecosystem of apps by
@@ -978,112 +965,98 @@
       distinct use cases.
     </p>
 
-    <div class="pillars-grid">
-      <div class="pillar pillar-emerald">
-        <span class="pillar-icon">🚨</span>
-        <div class="pillar-name">Community Safety</div>
-        <h3>Buzzr</h3>
-        <p>Turns each phone into a community safety node. Incidents — fire, accident, robbery,
-        flood, fight — are broadcast to nearby peers over I2P and stored locally for 48 hours.
-        SHA-256 phone hash for identity, GeoHash-5 for zone matching. 1,000+ installs, the
-        most-deployed app in the ecosystem.</p>
-      </div>
-      <div class="pillar pillar-blue">
-        <span class="pillar-icon">🤝</span>
-        <div class="pillar-name">Skill Networking</div>
-        <h3>6°Net</h3>
-        <p>A P2P professional network inspired by six degrees of separation. Users search for
-        skills across 2, 5, or 8 hops in their existing contact graph. Contact lists are SHA-256
-        hashed entirely on-device; only anonymised peer IDs ever leave the phone. Recently removed
-        Google Ads, Firebase, and all relay-server dependencies.</p>
-      </div>
-      <div class="pillar pillar-amber">
-        <span class="pillar-icon">🔐</span>
-        <div class="pillar-name">XMR Escrow</div>
-        <h3>ScrowIt!</h3>
-        <p>A non-custodial P2P escrow app for Monero trades between strangers, using 2-of-3
-        multisig between Buyer, Seller, and a neutral Arbitrator. No single party can move funds
-        alone. A 1.5% fee is collected atomically at payout.</p>
-      </div>
-      <div class="pillar pillar-violet">
-        <span class="pillar-icon">💰</span>
-        <div class="pillar-name">Savings Circle</div>
-        <h3>Àjọ</h3>
-        <p>A decentralised ROSCA app — the tontine / esusu model — with no accounts at all.
-        Identity lives only as a cryptographic key. Uses generalised (n-1)-of-n multisig across
-        groups of 3–20 members, so no single member can move funds unilaterally.</p>
-      </div>
+    <div class="pull-quote">
+      <p>Once the I2P substrate is built and tested, new privacy-preserving applications can be
+      built on top of it with relatively modest additional effort.</p>
+      <cite>— On the reusability of the paradigm</cite>
     </div>
 
-    <div class="pillar pillar-emerald" style="margin: 20px 0;">
-      <span class="pillar-icon">🎮</span>
-      <div class="pillar-name">Skill Betting</div>
-      <h3>Versuz</h3>
-      <p>Applies the same non-custodial multisig mechanism to peer-to-peer skill challenges and
-      bets. A Challenger and Opponent lock stakes into a 2-of-3 multisig escrow with a neutral
-      Arbitrator as the third key holder — no bookie, no platform, no house edge beyond a
-      transparent 1.5% service fee. Rated 18+ on Google Play given its gambling-adjacent nature.</p>
-    </div>
-
-    <div class="callout callout-good">
-      <div class="callout-icon">♻️</div>
-      <div class="callout-body">
-        <strong>A reusable substrate</strong>
-        <p>Buzzr's internal codebase runs an <code>I2PBuzzrService</code> on port 8880; Kabu-Kabu's
-        <code>I2PKabuService</code> runs on port 8881. The two apps share the same underlying I2P
-        P2P architecture, differing only in their domain logic. Once the I2P substrate is built and
-        tested, new privacy-preserving applications can be built on top of it with relatively
-        modest additional effort.</p>
-      </div>
-    </div>
-
+    <h3>Buzzr — P2P Community Safety Alerts</h3>
     <p>
-      Àjọ is the most socially complex app in the ecosystem — it coordinates financial consensus
-      among up to 20 anonymous peers across multiple rounds, entirely over an anonymous P2P
-      network, without any central coordinator. Three payout methods are supported: a fixed
-      pre-agreed sequence, a verifiable random lottery each round, or a bidding mechanism where
-      the lowest bid wins early access to that round's payout.
+      <a href="https://play.google.com/store/apps/details?id=com.techducat.buzzr" target="_blank" style="color: var(--emerald)">Buzzr</a>
+      turns each phone into a community safety node. When something happens nearby — an accident,
+      fire, robbery, or flood — a user reports it instantly. The incident broadcasts to nearby peers
+      over I2P, categorised (FIRE · ACCIDENT · ROBBERY · FLOOD · FIGHT), and stored locally for
+      48 hours. No account required, zero data collection per the Play Store safety declaration, and
+      it has crossed 1,000+ installs — the most-deployed app in the ecosystem.
+    </p>
+
+    <h3>6°Net — Privacy-First P2P Skill Networking</h3>
+    <p>
+      <a href="https://play.google.com/store/apps/details?id=com.techducat.favornet" target="_blank" style="color: var(--emerald)">6°Net</a>
+      is a peer-to-peer professional network inspired by six degrees of separation. Users search for
+      skills across 2, 5, or 8 hops in their existing contact graph. Your contact list is SHA-256
+      hashed entirely on-device — only anonymised peer IDs ever leave the phone. A recent update
+      removed Google Ads, Firebase, and all relay-server dependencies, transitioning to a fully
+      serverless architecture.
+    </p>
+
+    <h3>ScrowIt! — XMR Escrow</h3>
+    <p>
+      <a href="https://play.google.com/store/apps/details?id=com.techducat.scrowit" target="_blank" style="color: var(--emerald)">ScrowIt!</a>
+      is where the Monero half of the paradigm comes fully into view — a non-custodial P2P escrow
+      app using <strong>2-of-3 multisig</strong>: funds locked jointly between Buyer, Seller, and a
+      neutral Arbitrator. No single party can move funds alone. A fee of 1.5% is collected atomically
+      at payout, and offline counterparties are handled via an end-to-end encrypted Firestore mailbox
+      as a store-and-forward relay.
+    </p>
+
+    <h3>Àjọ — Monero Savings Circle</h3>
+    <p>
+      <a href="https://play.google.com/store/apps/details?id=com.techducat.ajo" target="_blank" style="color: var(--emerald)">Àjọ</a>
+      digitises the traditional rotating savings circle (tontine, chit fund, esusu) with no accounts
+      of any kind — identity lives only as a cryptographic key on-device. It generalises multisig to
+      <strong>(n-1)-of-n</strong> across 3–20 members, so no single member, including the creator,
+      can move funds unilaterally. Payouts can follow a fixed sequence, a verifiable random lottery,
+      or a bidding mechanism.
+    </p>
+
+    <h3>Versuz — P2P Skill Betting</h3>
+    <p>
+      <a href="https://play.google.com/store/apps/details?id=com.techducat.versuz" target="_blank" style="color: var(--emerald)">Versuz</a>
+      applies the same non-custodial mechanism to peer-to-peer skill challenges: Challenger and
+      Opponent lock stakes into a 2-of-3 multisig with a neutral Arbitrator as third key holder — no
+      bookie, no house, beyond a transparent 1.5% fee. Rated 18+ on Google Play, it carries an
+      explicit disclaimer that Monero transactions are irreversible.
     </p>
   </section>
 
   <!-- ═══ SECTION 6: THREAT MODEL ═══ -->
   <section>
-    <div class="section-kicker">Threat Model</div>
-    <h2>What This Paradigm Defends Against</h2>
-
-    <p>The I2P/Monero paradigm provides strong protections against a specific set of threats:</p>
+    <div class="section-kicker">Security Analysis</div>
+    <h2>Threat Model: What This Paradigm Defends Against</h2>
 
     <div class="compare-cards">
       <div class="compare-header" style="grid-template-columns: 220px 1fr;">
         <div class="compare-header-cell">Threat</div>
-        <div class="compare-header-cell" style="border-left: 1px solid var(--border); color: var(--emerald);">Defence</div>
+        <div class="compare-header-cell" style="color: var(--emerald); border-left: 1px solid var(--border);">✓ Defence</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">⚖️ Server seizure / legal compulsion</div>
-        <div class="compare-cell good">No server exists; developer holds no data</div>
+        <div class="compare-cell dim-label">Server seizure / legal compulsion</div>
+        <div class="compare-cell good" style="grid-column: 2;">No server exists; developer holds no data</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">🌐 IP address correlation</div>
+        <div class="compare-cell dim-label">IP address correlation</div>
         <div class="compare-cell good">I2P garlic routing hides source IP</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">🪪 Identity inference from phone number</div>
+        <div class="compare-cell dim-label">Identity from phone number</div>
         <div class="compare-cell good">SHA-256 hash is one-way; plaintext never transmitted</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">📍 Location history reconstruction</div>
+        <div class="compare-cell dim-label">Location history reconstruction</div>
         <div class="compare-cell good">GeoHash-5 gives ~5 km resolution; raw GPS never stored</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">💸 Financial surveillance</div>
+        <div class="compare-cell dim-label">Financial surveillance</div>
         <div class="compare-cell good">Monero transactions are private by protocol</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">🗄️ App store data harvesting</div>
+        <div class="compare-cell dim-label">App store data harvesting</div>
         <div class="compare-cell good">On-device Room DB; cloud backup disabled</div>
       </div>
       <div class="compare-row" style="grid-template-columns: 220px 1fr;">
-        <div class="compare-cell dim-label">🕵️ Man-in-the-middle attacks</div>
+        <div class="compare-cell dim-label">Man-in-the-middle attacks</div>
         <div class="compare-cell good">I2P end-to-end encryption; Ed25519 message signing</div>
       </div>
     </div>
@@ -1092,19 +1065,22 @@
       <div class="callout-icon">⚠️</div>
       <div class="callout-body">
         <strong>What it does not protect against</strong>
-        <p>Device-level compromise (malware with root access can read the local database),
-        physical seizure of a device, or coercion of the individual user. No software
-        architecture defeats a physical threat model.</p>
+        <p>Device-level compromise (malware with root access can read the local database), physical
+        seizure of a device, or coercion of the individual user. No software architecture defeats a
+        physical threat model.</p>
       </div>
     </div>
   </section>
 
   <!-- ═══ SECTION 7: FOR DEVELOPERS ═══ -->
   <section>
-    <div class="section-kicker">For Developers</div>
-    <h2>How to Replicate This Paradigm</h2>
+    <div class="section-kicker">Implementation Guide</div>
+    <h2>For Developers: How to Replicate This Paradigm</h2>
 
-    <p>The Kabu-Kabu codebase is open source and designed to be forked. The core steps for building a new app on this substrate:</p>
+    <p>
+      The Kabu-Kabu codebase is open source and designed to be forked. The core steps for building
+      a new app on this substrate:
+    </p>
 
     <div class="flow-diagram">
       <div class="flow-steps-list">
@@ -1112,42 +1088,51 @@
           <div class="flow-step-num step-emerald">1</div>
           <div class="flow-step-content">
             <strong>Embed the I2P router</strong>
-            <p>Obtain <code>router.jar</code>, <code>sam.jar</code>, and <code>i2p-android-client.aar</code> and place them in <code>app/libs/</code>. The SAM bridge provides a standard socket API so application code talks to I2P via ordinary TCP.</p>
+            <p>Obtain <code>router.jar</code>, <code>sam.jar</code>, and <code>i2p-android-client.aar</code>,
+            place them in <code>app/libs/</code>. The SAM bridge exposes a plain TCP socket API so
+            app code never touches I2P internals directly.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-amber">2</div>
           <div class="flow-step-content">
             <strong>Define your GeoHash zone</strong>
-            <p>Convert user GPS coordinates to a GeoHash-5 string immediately on receipt using a library like <code>ch.hsr:geohash</code>. Use this hash as the "zone" for peer discovery. Discard raw coordinates.</p>
+            <p>Convert GPS coordinates to a GeoHash-5 string immediately on receipt (e.g. via
+            <code>ch.hsr:geohash</code>). Use it as the "zone" for peer discovery. Discard raw
+            coordinates.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-blue">3</div>
           <div class="flow-step-content">
             <strong>Hash your identity</strong>
-            <p>Hash the user's phone number (or any persistent device identifier) with SHA-256 on first launch. Store the hash; discard the plaintext. Use the hash as your node's identity on the I2P network.</p>
+            <p>Hash the user's phone number or persistent device identifier with SHA-256 on first
+            launch. Store the hash, discard the plaintext, and use the hash as your node's identity.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-violet">4</div>
           <div class="flow-step-content">
             <strong>Define your domain messages</strong>
-            <p>Kabu-Kabu uses <code>RideRequest</code> and <code>DriverOffer</code>; Buzzr uses <code>IncidentReport</code>; 6°Net uses <code>SkillListing</code> and <code>SearchQuery</code>. Model your domain objects, serialise to JSON, and broadcast over the I2P socket.</p>
+            <p>Kabu-Kabu uses <code>RideRequest</code>/<code>DriverOffer</code>; Buzzr uses
+            <code>IncidentReport</code>; 6°Net uses <code>SkillListing</code>/<code>SearchQuery</code>.
+            Serialise your domain objects to JSON and broadcast over the I2P socket.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-red">5</div>
           <div class="flow-step-content">
             <strong>Disable cloud backup</strong>
-            <p>Add <code>android:allowBackup="false"</code> to your manifest and configure <code>backup_rules.xml</code> to exclude your Room database.</p>
+            <p>Add <code>android:allowBackup="false"</code> to your manifest and configure
+            <code>backup_rules.xml</code> to exclude your Room database.</p>
           </div>
         </div>
         <div class="flow-step">
           <div class="flow-step-num step-emerald">6</div>
           <div class="flow-step-content">
             <strong>Add Monero if money is involved</strong>
-            <p>Integrate the Monero Android wallet library and use 2-of-3 multisig for any escrow or joint-custody scenario. This keeps your app non-custodial by design.</p>
+            <p>Integrate the Monero Android wallet library and use 2-of-3 multisig for any escrow
+            or joint-custody scenario, keeping the app non-custodial by design.</p>
           </div>
         </div>
       </div>
@@ -1155,15 +1140,15 @@
 
     <p>
       Build flavours for <code>playstore</code> and <code>fdroid</code> are recommended from the
-      start — F-Droid users are exactly the audience this paradigm serves, and a reproducible
-      build demonstrates that the binary matches the published source.
+      start — F-Droid users are exactly the audience this paradigm serves, and a reproducible build
+      demonstrates that the binary matches the published source.
     </p>
   </section>
 
   <!-- ═══ SECTION 8: CONCLUSION ═══ -->
   <section>
     <div class="section-kicker">Conclusion</div>
-    <h2>A Trust Model, Not a Policy Promise</h2>
+    <h2>The Developer Cannot Betray Their Users' Data</h2>
 
     <p>
       The apps described in this article — Kabu-Kabu, Buzzr, 6°Net, ScrowIt!, Àjọ, and Versuz —
@@ -1173,16 +1158,16 @@
     </p>
 
     <p>
-      The paradigm is not theoretical. It is running on Google Play today, serving real users,
-      with open-source code available for inspection. It does not require exotic hardware, custom
+      The paradigm is not theoretical. It is running on Google Play today, serving real users, with
+      open-source code available for inspection. It does not require exotic hardware, custom
       operating systems, or deep cryptographic expertise. It requires two mature open-source
-      primitives, a handful of well-understood Android libraries, and the discipline to never
-      write user data to a server you control.
+      primitives, a handful of well-understood Android libraries, and the discipline to never write
+      user data to a server you control.
     </p>
 
     <div class="pull-quote">
-      <p>The most remarkable thing about this approach is its simplicity as a trust model:
-         the developer cannot betray their users' data because they never had it.</p>
+      <p>The most remarkable thing about this approach is its simplicity as a trust model: the
+      developer cannot betray their users' data because they never had it.</p>
       <cite>— Article summary</cite>
     </div>
 
@@ -1197,7 +1182,8 @@
     <div class="footer-left">
       <p>SOURCE REPOSITORY</p>
       <p style="margin-bottom: 12px; color: var(--muted-hi)">github.com/niyid/kabu-kabu-p2p</p>
-      <p style="margin-bottom: 12px; color: var(--muted-hi)">play.google.com/store/apps/details?id=com.techducat.buzzr · com.techducat.favornet · com.techducat.scrowit · com.techducat.ajo · com.techducat.versuz</p>
+      <p>ECOSYSTEM · TECHDUCAT TEAM ON GOOGLE PLAY</p>
+      <p style="margin-bottom: 12px; color: var(--muted-hi)">Buzzr · 6°Net · ScrowIt! · Àjọ · Versuz</p>
       <p>LICENCE · OPEN SOURCE</p>
     </div>
     <a class="footer-link" href="https://github.com/niyid/kabu-kabu-p2p" target="_blank">
