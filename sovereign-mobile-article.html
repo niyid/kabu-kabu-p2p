@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Server Is Optional Now: Six Apps, Zero Backends, and the Blueprint for Mobile Sovereignty</title>
+
+<!-- SEO -->
+<meta name="description" content="An engineering deep-dive into six production Android apps — a ROSCA savings platform, an anonymous reporting tool, a ride-hailing app, a Monero escrow marketplace, a barter network, and a betting platform — all built on the same server-less, embedded-I2P, on-device-first architecture.">
+<meta name="author" content="Engineering Article">
+<meta name="keywords" content="I2P, peer-to-peer, decentralization, Monero, multisig, mobile architecture, sovereignty, Android, CRDT, gossip protocol, SAM bridge, censorship resistance">
+
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Server Is Optional Now: Six Apps, Zero Backends, and the Blueprint for Mobile Sovereignty">
+<meta property="og:description" content="The architecture, trade-offs, and case for a server-less, I2P-routed, on-device-first paradigm across six shipped Android apps.">
+<meta property="og:site_name" content="Mobile Sovereignty Research">
+
+<!-- Twitter/X Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Server Is Optional Now">
+<meta name="twitter:description" content="Six apps, zero backends: the engineering blueprint for peer-to-peer, I2P-routed, sovereign mobile software.">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg:           #070a08;
+    --surface:      #0c100d;
+    --panel:        #121710;
+    --border:       #212a20;
+    --border-hi:    #37452f;
+    --rose:         #5ecb7d;
+    --rose-dim:     rgba(94,203,125,0.14);
+    --leaf:         #4fd1c5;
+    --leaf-dim:     rgba(79,209,197,0.13);
+    --amber:        #e0c468;
+    --amber-dim:    rgba(224,196,104,0.13);
+    --red:          #ef4444;
+    --red-dim:      rgba(239,68,68,0.12);
+    --violet:       #97a3e0;
+    --violet-dim:   rgba(151,163,224,0.13);
+    --text:         #eef2ea;
+    --muted:        #859081;
+    --muted-hi:     #bcc4b6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.75;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(94,203,125,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(94,203,125,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  .hero {
+    padding: 56px 0 64px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 64px;
+    position: relative;
+  }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin-bottom: 28px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: var(--rose);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(30px, 5vw, 52px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 22px;
+  }
+
+  h1 .accent { color: var(--rose); }
+  h1 .italic { font-style: italic; }
+
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+  .hero-meta .sep { color: var(--border-hi); }
+
+  .hero-lead {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--muted-hi);
+    line-height: 1.7;
+    max-width: 680px;
+    border-left: 3px solid var(--rose);
+    padding-left: 20px;
+  }
+
+  /* Cover art */
+  .cover-art {
+    position: relative;
+    width: 100vw;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    margin-top: -1px;
+    margin-bottom: 0;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cover-art img {
+    display: block;
+    width: 100%;
+    height: clamp(220px, 40vw, 520px);
+    object-fit: cover;
+    object-position: center 30%;
+  }
+
+  .cover-art::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(7,10,8,0) 0%, rgba(7,10,8,0.35) 72%, var(--bg) 100%);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    .cover-art img { height: 260px; object-position: center 22%; }
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 28px;
+    margin-bottom: 64px;
+  }
+  .toc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin-bottom: 16px;
+  }
+  .toc-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+  }
+  @media (max-width: 600px) { .toc-list { grid-template-columns: 1fr; } }
+  .toc-list li a {
+    display: flex;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--muted-hi);
+    text-decoration: none;
+    padding: 4px 0;
+    border-bottom: 1px dashed transparent;
+  }
+  .toc-list li a:hover { color: var(--rose); border-bottom-color: var(--rose); }
+  .toc-num { font-family: 'IBM Plex Mono', monospace; color: var(--muted); flex-shrink: 0; }
+
+  section { margin-bottom: 72px; }
+
+  .section-kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-kicker::after {
+    content: '';
+    display: block;
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(24px, 3.5vw, 36px);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin-bottom: 24px;
+  }
+
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 18px; color: var(--muted-hi); }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--text); font-weight: 500; }
+
+  .pull-quote {
+    background: var(--rose-dim);
+    border: 1px solid rgba(94,203,125,0.25);
+    border-left: 4px solid var(--rose);
+    border-radius: 0 8px 8px 0;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .pull-quote p {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .pull-quote cite {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--rose);
+    text-transform: uppercase;
+  }
+
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 32px 0;
+  }
+  @media (max-width: 600px) { .pillars-grid { grid-template-columns: 1fr; } }
+
+  .pillar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .pillar:hover { border-color: var(--border-hi); }
+  .pillar-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+  .pillar-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .pillar h3 { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; margin-bottom: 8px; color: var(--text); }
+  .pillar p { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 0; }
+  .pillar-rose   { border-left: 3px solid var(--rose); }
+  .pillar-amber  { border-left: 3px solid var(--amber); }
+  .pillar-leaf   { border-left: 3px solid var(--leaf); }
+  .pillar-violet { border-left: 3px solid var(--violet); }
+
+  .code-block {
+    background: #050705;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 28px 0;
+    font-size: 13px;
+  }
+  .code-header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .code-header span { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+  .code-header .lang { color: var(--rose); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .code-body {
+    padding: 20px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    font-size: 12.5px;
+    color: var(--muted-hi);
+  }
+  .kw { color: #c792ea; }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .num { color: #f78c6c; }
+  .cm { color: #6b6455; font-style: italic; }
+  .ty { color: #ffcb6b; }
+  .prop { color: var(--rose); }
+
+  .flow-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    margin: 32px 0;
+  }
+  .flow-steps-list { display: flex; flex-direction: column; gap: 0; position: relative; margin-top: 8px; }
+  .flow-step {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .step-rose   { background: var(--rose-dim);   color: var(--rose);   border: 1px solid rgba(94,203,125,0.3); }
+  .step-amber  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(224,196,104,0.3); }
+  .step-leaf   { background: var(--leaf-dim);   color: var(--leaf);   border: 1px solid rgba(79,209,197,0.3); }
+  .step-red    { background: var(--red-dim);    color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+  .step-violet { background: var(--violet-dim); color: var(--violet); border: 1px solid rgba(151,163,224,0.3); }
+
+  .flow-step-content strong { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .flow-step-content p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.55; }
+
+  .compare-cards {
+    display: flex; flex-direction: column; gap: 0;
+    margin: 28px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+  .compare-header {
+    display: grid; grid-template-columns: 160px 1fr 1fr;
+    background: var(--panel); border-bottom: 2px solid var(--border-hi);
+  }
+  .compare-header.cols-4 { grid-template-columns: 140px 1fr 1fr 1fr; }
+  .compare-header-cell {
+    padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.13em; text-transform: uppercase; display: flex; align-items: center; gap: 6px;
+  }
+  .compare-header-cell:nth-child(1) { color: var(--muted); }
+  .compare-header-cell:not(:first-child) { border-left: 1px solid var(--border); color: var(--rose); }
+  .compare-row {
+    display: grid; grid-template-columns: 160px 1fr 1fr;
+    border-bottom: 1px solid var(--border); transition: background 0.15s;
+  }
+  .compare-row.cols-4 { grid-template-columns: 140px 1fr 1fr 1fr; }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row:hover { background: rgba(255,255,255,0.018); }
+  .compare-cell { padding: 14px 16px; font-size: 13.5px; line-height: 1.5; }
+  .compare-cell:not(:first-child) { border-left: 1px solid var(--border); }
+  .compare-cell.dim-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .compare-cell.bad  { color: #f87171; }
+  .compare-cell.good { color: #86d98a; }
+  .compare-cell.mid  { color: var(--amber); }
+
+  @media (max-width: 640px) {
+    .compare-header, .compare-header.cols-4 { grid-template-columns: 1fr; }
+    .compare-header-cell:not(:first-child) { border-left: none; border-top: 1px solid var(--border); }
+    .compare-row, .compare-row.cols-4 { grid-template-columns: 1fr; }
+    .compare-cell.dim-label {
+      background: var(--panel); font-size: 10px; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 8px 16px 4px;
+    }
+    .compare-cell:not(:first-child) { border-left: none; padding-top: 6px; padding-bottom: 6px; }
+  }
+
+  .tech-stack { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+  .tech-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--muted-hi); letter-spacing: 0.05em; transition: border-color 0.2s, color 0.2s;
+  }
+  .tech-pill:hover { border-color: var(--border-hi); color: var(--text); }
+  .tech-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-rose   { background: var(--rose); }
+  .dot-amber  { background: var(--amber); }
+  .dot-leaf   { background: var(--leaf); }
+  .dot-violet { background: var(--violet); }
+
+  .callout {
+    border-radius: 8px; padding: 18px 20px; margin: 24px 0;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .callout-warn { background: var(--amber-dim); border: 1px solid rgba(224,196,104,0.25); }
+  .callout-info { background: var(--violet-dim); border: 1px solid rgba(151,163,224,0.25); }
+  .callout-good { background: var(--leaf-dim); border: 1px solid rgba(79,209,197,0.25); }
+  .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body p { font-size: 13.5px; margin: 0; line-height: 1.6; }
+  .callout-body strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+  .bom-cards {
+    display: flex; flex-direction: column; gap: 0;
+    margin: 28px 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+  .bom-header {
+    display: grid; grid-template-columns: 1fr 110px 150px;
+    background: var(--panel); border-bottom: 2px solid var(--border-hi);
+  }
+  .bom-header-cell {
+    padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted);
+  }
+  .bom-header-cell:not(:first-child) { border-left: 1px solid var(--border); color: var(--rose); }
+  .bom-row {
+    display: grid; grid-template-columns: 1fr 110px 150px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bom-row:last-child { border-bottom: none; }
+  .bom-row.total { background: var(--rose-dim); font-weight: 500; }
+  .bom-cell { padding: 13px 16px; font-size: 13.5px; line-height: 1.45; }
+  .bom-cell.part-name { color: var(--text); }
+  .bom-cell.part-note { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .bom-cell.qty, .bom-cell.price { text-align: right; font-family: 'IBM Plex Mono', monospace; color: var(--muted-hi); border-left: 1px solid var(--border); }
+  .bom-row.total .bom-cell { color: var(--rose); font-family: 'IBM Plex Mono', monospace; }
+
+  @media (max-width: 560px) {
+    .bom-header, .bom-row { grid-template-columns: 1fr 60px 100px; }
+    .bom-header-cell, .bom-cell { padding: 10px 8px; font-size: 11.5px; }
+  }
+
+  .app-links-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 28px 0;
+  }
+  @media (max-width: 600px) { .app-links-grid { grid-template-columns: 1fr; } }
+  .app-link-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .app-link-card:hover { border-color: var(--rose); background: rgba(94,203,125,0.06); }
+  .app-link-left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .app-link-name { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; color: var(--text); }
+  .app-link-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .app-link-arrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    color: var(--rose);
+    flex-shrink: 0;
+  }
+
+  .refs-list { list-style: none; margin: 24px 0 0; padding: 0; }
+  .refs-list li {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .refs-list li:last-child { border-bottom: none; }
+  .refs-list .ref-title { color: var(--text); display: block; margin-bottom: 3px; }
+  .refs-list .ref-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .refs-group-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--rose);
+    margin: 28px 0 4px;
+  }
+  .refs-group-label:first-of-type { margin-top: 8px; }
+
+  .molecule-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 28px 0;
+  }
+  @media (max-width: 640px) { .molecule-grid { grid-template-columns: 1fr 1fr; } }
+  .molecule-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+  }
+  .molecule-card .m-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--rose);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .molecule-card .m-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  ol.numbered-list, ul.plain-list { margin: 0 0 18px 0; padding-left: 22px; color: var(--muted-hi); }
+  ol.numbered-list li, ul.plain-list li { margin-bottom: 10px; font-size: 14.5px; line-height: 1.6; }
+
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+    color: var(--rose);
+  }
+
+  .article-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 40px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    flex-wrap: wrap; gap: 20px;
+  }
+  .footer-left p {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+    letter-spacing: 0.05em; margin: 0 0 6px;
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero { animation: fadeSlideUp 0.7s ease both; }
+  section { animation: fadeSlideUp 0.6s ease both; }
+
+  @media (max-width: 600px) {
+    .container { padding: 0 16px 64px; }
+    .hero { padding: 40px 0 36px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ═══ COVER ART / TITLE GRAPHIC ═══ -->
+  <div class="cover-art">
+    <img src="sovereign-app.png" alt="The Server Is Optional Now — an infographic showing six mobile apps (Àjọ, Buzzr, Kabu², Scrowit!, 6°, Versuz) connected over an I2P mesh network, with no central server, on-device data, and Monero-backed financial rails">
+  </div>
+
+<div class="container">
+
+  <!-- ═══ HERO ═══ -->
+  <header class="hero">
+    <h1 class="visually-hidden">The Server Is Optional Now: Six Apps, Zero Backends, and the Blueprint for Mobile Sovereignty</h1>
+
+    <div class="hero-eyebrow">Peer-to-Peer Architecture · Embedded I2P · Applied Cryptography</div>
+
+    <div class="hero-meta">
+      <span>📅 August 2026</span>
+      <span class="sep">·</span>
+      <span>📱 Six Production Android Apps</span>
+      <span class="sep">·</span>
+      <span>🔐 I2P · Monero · On-Device Storage</span>
+      <span class="sep">·</span>
+      <span>⏱ 18 min read</span>
+    </div>
+
+    <p class="hero-lead">
+      For fifteen years, "mobile app" has quietly meant "thin client for someone else's server."
+      This is the engineering blueprint for the alternative — six shipped Android apps, spanning
+      savings circles, anonymous reporting, ride-hailing, escrow, barter, and betting, all built
+      on the exact same skeleton: an embedded I2P router, on-device state, gossip-based peer
+      discovery, and — where money moves — Monero multisig instead of a custodian. No backend to
+      breach, subpoena, or sunset.
+    </p>
+  </header>
+
+  <!-- ═══ TOC ═══ -->
+  <nav class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <ul class="toc-list">
+      <li><a href="#ch1"><span class="toc-num">01</span> The Premise: Killing the Backend</a></li>
+      <li><a href="#ch2"><span class="toc-num">02</span> The Shared Blueprint</a></li>
+      <li><a href="#ch3"><span class="toc-num">03</span> Identity Is Math</a></li>
+      <li><a href="#ch4"><span class="toc-num">04</span> Peer Discovery Without a Directory</a></li>
+      <li><a href="#ch5"><span class="toc-num">05</span> Six Apps, One Skeleton</a></li>
+      <li><a href="#apps"><span class="toc-num">＋</span> Get the Apps</a></li>
+      <li><a href="#ch6"><span class="toc-num">06</span> Àjọ — Savings Without a Bank</a></li>
+      <li><a href="#ch7"><span class="toc-num">07</span> Kabu² — A Taxi App With No Dispatcher</a></li>
+      <li><a href="#ch8"><span class="toc-num">08</span> Scrowit! — Escrow Without a Custodian</a></li>
+      <li><a href="#ch9"><span class="toc-num">09</span> 6° &amp; Versuz — Barter and Betting, Server-Free</a></li>
+      <li><a href="#ch10"><span class="toc-num">10</span> Buzzr — Anonymity as a First-Class Feature</a></li>
+      <li><a href="#ch11"><span class="toc-num">11</span> Money Without a Custodian</a></li>
+      <li><a href="#ch12"><span class="toc-num">12</span> The Security Case</a></li>
+      <li><a href="#ch13"><span class="toc-num">13</span> Where This Gets Hard</a></li>
+      <li><a href="#ch14"><span class="toc-num">14</span> For Developers: Replicate This Blueprint</a></li>
+      <li><a href="#ch15"><span class="toc-num">15</span> Why This Is the Future of Mobile</a></li>
+      <li><a href="#refs"><span class="toc-num">＋</span> Project Notes</a></li>
+    </ul>
+  </nav>
+
+  <!-- ═══ CHAPTER 1 ═══ -->
+  <section id="ch1">
+    <div class="section-kicker">Chapter 01 · The Premise</div>
+    <h2>The Premise: Killing the Backend</h2>
+
+    <p>
+      Every mobile app you've used this week almost certainly talks to a server you'll never see.
+      That server holds your data, enforces the business logic, and — whether or not the company
+      intends to misuse it — represents a single point where your information can be breached,
+      subpoenaed, sold, or simply switched off when the product gets shut down. This has been true
+      for so long that "app" and "client of a cloud service" have become almost synonymous.
+    </p>
+
+    <p>
+      Six apps built over the past several months set out to test whether that's actually
+      necessary. Not as a thought experiment — as shipped, working Android software: <strong>Àjọ</strong>,
+      a Monero-based rotating savings circle; <strong>Buzzr</strong>, an anonymous witness-reporting
+      tool; <strong>Kabu²</strong>, a peer-to-peer ride-hailing and courier app; <strong>Scrowit!</strong>,
+      a Monero escrow marketplace; <strong>6°</strong>, a barter and favor-trading network; and
+      <strong>Versuz</strong>, a decentralized betting platform. Different domains, different user
+      problems — but underneath, the same architectural decision made six times over: no central
+      server holds the truth. The devices do.
+    </p>
+
+    <div class="pull-quote">
+      <p>The app is the infrastructure. There is no backend to acquire, breach, rate-limit, or
+      quietly sunset — because there is no backend.</p>
+      <cite>— Framing the design constraint</cite>
+    </div>
+
+    <p>
+      This article walks through exactly how that's built: the shared networking core every app
+      reuses, the identity and privacy techniques that replace a login system, the financial rails
+      that replace a payment processor, and — because no engineering write-up is credible without
+      them — the real trade-offs this approach carries.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 2 ═══ -->
+  <section id="ch2">
+    <div class="section-kicker">Chapter 02 · The Core Architecture</div>
+    <h2>The Shared Blueprint</h2>
+
+    <p>
+      Strip away what each app <em>does</em>, and every one of them is built around the identical
+      three-layer stack. Understanding this stack once means understanding the network layer of
+      all six apps at once.
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-rose">1</div>
+          <div class="flow-step-content">
+            <strong>UI layer — talks only to localhost</strong>
+            <p>Activities and view models never touch the network directly. They call a thin
+            client class (e.g. <code>I2PMessengerClient</code>, <code>I2PKabuClient</code>) that
+            connects to <code>127.0.0.1</code> over a plain TCP socket. As far as the UI is
+            concerned, the network doesn't exist — it just talks to a local service.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">2</div>
+          <div class="flow-step-content">
+            <strong>Foreground service — the dual-server relay</strong>
+            <p>A background Android service runs two listeners at once: one port (typically
+            <code>8880</code>) for local client connections from the app's own UI, and a second
+            port (<code>8881</code>) as the I2P tunnel's inbound target, receiving traffic
+            from <em>other people's</em> devices across the network. This service is the entire
+            "backend" — and it lives on the phone.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-leaf">3</div>
+          <div class="flow-step-content">
+            <strong>Embedded I2P router — the transport</strong>
+            <p>Each app ships an I2P router and SAM (Simple Anonymity Messaging) bridge inside the
+            APK itself. It establishes multi-hop, garlic-routed tunnels to other peers' I2P
+            destinations — addresses that look like <code>xyz...b32.i2p</code> — so no IP address
+            is ever exposed between two devices talking to each other.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      The result: from the UI's point of view, sending a chat message, a game move, a ride
+      request, or a trade update all reduce to the same call — hand a JSON payload to the local
+      client, which hands it to the local service, which puts it on an I2P tunnel. Nothing about
+      the UI code needs to know or care that "the internet" is involved at all.
+    </p>
+
+    <h3>The port map</h3>
+    <p>
+      Because every app follows the same pattern, the actual port usage is close to identical
+      across the portfolio — useful both for debugging and for understanding what's running on a
+      user's device at any time:
+    </p>
+
+    <div class="bom-cards">
+      <div class="bom-header">
+        <div class="bom-header-cell">Port</div>
+        <div class="bom-header-cell">Scope</div>
+        <div class="bom-header-cell">Purpose</div>
+      </div>
+      <div class="bom-row">
+        <div class="bom-cell part-name">8880</div>
+        <div class="bom-cell qty">local</div>
+        <div class="bom-cell price">UI ↔ local service (handshake, status, peer list, messages)</div>
+      </div>
+      <div class="bom-row">
+        <div class="bom-cell part-name">8881</div>
+        <div class="bom-cell qty">I2P tunnel</div>
+        <div class="bom-cell price">Inbound target — where other nodes' traffic lands</div>
+      </div>
+      <div class="bom-row">
+        <div class="bom-cell part-name">7656</div>
+        <div class="bom-cell qty">local</div>
+        <div class="bom-cell price">I2P SAM bridge (session &amp; tunnel management, 3.1 protocol)</div>
+      </div>
+      <div class="bom-row">
+        <div class="bom-cell part-name">7650</div>
+        <div class="bom-cell qty">local</div>
+        <div class="bom-cell price">I2P control port — create/destroy tunnels programmatically</div>
+      </div>
+      <div class="bom-row">
+        <div class="bom-cell part-name">4444 / 4447</div>
+        <div class="bom-cell qty">local</div>
+        <div class="bom-cell price">I2P HTTP proxy / SOCKS proxy</div>
+      </div>
+      <div class="bom-row total">
+        <div class="bom-cell part-name">External exposure</div>
+        <div class="bom-cell qty"></div>
+        <div class="bom-cell price">Zero. Every port above is bound to 127.0.0.1.</div>
+      </div>
+    </div>
+
+    <p>
+      That last row is the entire point of the architecture: <code>network_security_config.xml</code>
+      across these apps allows cleartext traffic <em>only</em> on the loopback interface. Every byte
+      that leaves the device is already inside an I2P tunnel before it hits a real network
+      interface.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 3 ═══ -->
+  <section id="ch3">
+    <div class="section-kicker">Chapter 03 · Identity &amp; Privacy</div>
+    <h2>Identity Is Math</h2>
+
+    <p>
+      A server-less app still needs to know who's who — but "who's who" doesn't have to mean a
+      phone book. Across all six apps, personally identifying information is transformed at the
+      moment of capture, before it's ever serialized, stored, or sent anywhere.
+    </p>
+
+    <div class="pillars-grid">
+      <div class="pillar pillar-rose">
+        <span class="pillar-icon">📞</span>
+        <div class="pillar-name">Phone Numbers</div>
+        <h3>SHA-256, never plaintext</h3>
+        <p>A phone number is hashed on-device into a 64-character string the instant it's entered.
+        The plaintext number is used once, to generate the hash, and is never transmitted or
+        persisted. The hash becomes the user's permanent, unforgeable, unreversible network
+        identity.</p>
+      </div>
+      <div class="pillar pillar-leaf">
+        <span class="pillar-icon">📍</span>
+        <div class="pillar-name">GPS Coordinates</div>
+        <h3>GeoHash-5, not lat/long</h3>
+        <p>Kabu²'s ride-matching never sends a raw coordinate over the network. GPS is converted
+        into a ~5km GeoHash cell first — precise enough to match riders and drivers in the same
+        neighborhood, useless for reconstructing anyone's exact location.</p>
+      </div>
+      <div class="pillar pillar-amber">
+        <span class="pillar-icon">🔑</span>
+        <div class="pillar-name">Message Signing</div>
+        <h3>Ed25519 keypairs per node</h3>
+        <p>Escrow and multisig-coordination apps generate a device-specific Ed25519 keypair used to
+        sign trade invites, arbitrator invitations, and protocol messages — so a peer can verify a
+        message actually came from who it claims to, without any central certificate authority.</p>
+      </div>
+      <div class="pillar pillar-violet">
+        <span class="pillar-icon">🗄️</span>
+        <div class="pillar-name">Application State</div>
+        <h3>Room database, on-device only</h3>
+        <p>Trip history, trade ledgers, betting records, listings, and chat all live in an
+        encrypted Room/SQLite database on the phone. <code>backup_rules.xml</code> and
+        <code>data_extraction_rules.xml</code> explicitly exclude this data from Android's cloud
+        backup — it never leaves the device unless the user shares it.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">🧮</div>
+      <div class="callout-body">
+        <strong>Why "hash-then-discard" beats "encrypt-then-store"</strong>
+        <p>Encrypting sensitive data still means someone holds a key that can decrypt it later.
+        Discarding the plaintext entirely — after deriving a one-way identifier from it — means
+        there is nothing left to compromise, subpoena, or leak. This is the difference between
+        privacy as a policy promise and privacy as a structural fact.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CHAPTER 4 ═══ -->
+  <section id="ch4">
+    <div class="section-kicker">Chapter 04 · Networking</div>
+    <h2>Peer Discovery Without a Directory</h2>
+
+    <p>
+      A client-server app finds other users by asking the server. A server-less app has to solve
+      the same problem — "who else is online, and how do I reach them?" — without one. The answer
+      here is a lightweight <strong>gossip protocol</strong>, the same pattern used in production
+      distributed systems for decades, adapted to run entirely between phones.
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-rose">1</div>
+          <div class="flow-step-content">
+            <strong>Bootstrap</strong>
+            <p>A new node starts from a small hardcoded or user-configured list of bootstrap peers
+            — well-known I2P destinations that are likely to be online — to get its first
+            connections into the network.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">2</div>
+          <div class="flow-step-content">
+            <strong>Exchange, every 30 seconds</strong>
+            <p>Each node periodically shares its known-peers list with a handful of random online
+            peers, and merges whatever lists it receives back in return. Nobody has the complete
+            picture, but the picture propagates fast.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-leaf">3</div>
+          <div class="flow-step-content">
+            <strong>Expire the silent</strong>
+            <p>Peers that haven't been heard from in a set window — typically two to three minutes
+            — are dropped from the local peer table. The network self-heals around anyone who goes
+            offline; there's no server to notice they're gone.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-violet">4</div>
+          <div class="flow-step-content">
+            <strong>Resilience by design</strong>
+            <p>Message queues with exponential-backoff reconnection, priority-based delivery, and
+            heartbeat pings keep the experience smooth even as individual peers connect and
+            disconnect constantly — which, on mobile, is the normal state of affairs, not an edge
+            case.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      This is, functionally, the same problem BitTorrent and Bitcoin's peer discovery solve — and
+      the same answer works here for the same reason: a directory is a convenience, not a
+      requirement, once devices are willing to talk to each other directly.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 5 ═══ -->
+  <section id="ch5">
+    <div class="section-kicker">Chapter 05 · The Portfolio</div>
+    <h2>Six Apps, One Skeleton</h2>
+
+    <p>
+      With the shared plumbing established, here's what each app actually does — and why the
+      server-less approach isn't incidental to any of them, but core to the product.
+    </p>
+
+    <div class="molecule-grid">
+      <div class="molecule-card">
+        <div class="m-name">Àjọ</div>
+        <div class="m-desc">Monero ROSCA savings circles. (n-1)-of-n multisig wallets, on-chain
+        metadata via tx_extra, three payout methods.</div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-name">Buzzr</div>
+        <div class="m-desc">Anonymous witness reporting. "Tell us what you witnessed" — I2P-routed,
+        SHA-256 identity, no account required.</div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-name">Kabu²</div>
+        <div class="m-desc">Peer-to-peer ride-hailing and courier. GeoHash-5 privacy, garlic-routed
+        matching, no dispatcher server.</div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-name">Scrowit!</div>
+        <div class="m-desc">Monero escrow marketplace. 2-of-3 multisig between buyer, seller, and
+        an invited arbitrator.</div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-name">6°</div>
+        <div class="m-desc">Barter and favor network. Migrated from a Node.js relay server to a
+        fully P2P gossip protocol.</div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-name">Versuz</div>
+        <div class="m-desc">Decentralized betting. Monero multisig escrow, oracle/arbitrator/
+        consensus settlement, pseudonymous reputation.</div>
+      </div>
+    </div>
+
+    <p>
+      The next several chapters take the four most architecturally distinct apps in turn, then
+      cover the two shared underlying systems — Monero multisig and the security model — that tie
+      the whole portfolio together.
+    </p>
+  </section>
+
+  <!-- ═══ GET THE APPS ═══ -->
+  <section id="apps">
+    <div class="section-kicker">Live on Google Play</div>
+    <h2>Get the Apps</h2>
+
+    <p>
+      Five of the six apps covered in this article are live on the Play Store today — real,
+      installable software, not concept renders. (Kabu², the ride-hailing app discussed in Chapter
+      7, ships under the same developer account and shares the identical architecture, with its
+      own listing following shortly.)
+    </p>
+
+    <div class="app-links-grid">
+      <a class="app-link-card" href="https://play.google.com/store/apps/details?id=com.techducat.ajo" target="_blank" rel="noopener">
+        <div class="app-link-left">
+          <span class="app-link-name">Àjọ — Monero Savings Circle</span>
+          <span class="app-link-desc">Private, anonymous ROSCA savings circles powered by Monero and I2P</span>
+        </div>
+        <span class="app-link-arrow">↗</span>
+      </a>
+      <a class="app-link-card" href="https://play.google.com/store/apps/details?id=com.techducat.buzzr" target="_blank" rel="noopener">
+        <div class="app-link-left">
+          <span class="app-link-name">Buzzr</span>
+          <span class="app-link-desc">P2P community safety alerts — anonymous, local, real-time</span>
+        </div>
+        <span class="app-link-arrow">↗</span>
+      </a>
+      <a class="app-link-card" href="https://play.google.com/store/apps/details?id=com.techducat.scrowit" target="_blank" rel="noopener">
+        <div class="app-link-left">
+          <span class="app-link-name">ScrowIt! — XMR Escrow</span>
+          <span class="app-link-desc">Private Monero escrow with 2-of-3 multisig, I2P encryption, no middlemen</span>
+        </div>
+        <span class="app-link-arrow">↗</span>
+      </a>
+      <a class="app-link-card" href="https://play.google.com/store/apps/details?id=com.techducat.versuz" target="_blank" rel="noopener">
+        <div class="app-link-left">
+          <span class="app-link-name">Versuz — P2P Bets</span>
+          <span class="app-link-desc">Decentralized, Monero-backed peer-to-peer betting over I2P</span>
+        </div>
+        <span class="app-link-arrow">↗</span>
+      </a>
+      <a class="app-link-card" href="https://play.google.com/store/apps/details?id=com.techducat.favornet" target="_blank" rel="noopener">
+        <div class="app-link-left">
+          <span class="app-link-name">6°Net</span>
+          <span class="app-link-desc">P2P skill network — connect the skilled to those who need them, privately</span>
+        </div>
+        <span class="app-link-arrow">↗</span>
+      </a>
+    </div>
+
+    <div class="callout callout-good">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <strong>This isn't a lab demo</strong>
+        <p>Every architectural claim in this article — the embedded I2P router, the SHA-256 identity
+        model, the on-device-only storage, the Monero multisig escrow — is live in production, in
+        apps a stranger can install right now. That's a meaningfully higher bar than a whitepaper.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CHAPTER 6 ═══ -->
+  <section id="ch6">
+    <div class="section-kicker">Chapter 06 · Deep Dive</div>
+    <h2>Àjọ — Savings Without a Bank</h2>
+
+    <p class="hero-meta" style="margin-bottom: 24px;"><span>📲 <a href="https://play.google.com/store/apps/details?id=com.techducat.ajo" target="_blank" rel="noopener" style="color: var(--rose);">Live on Google Play</a></span></p>
+
+    <p>
+      A ROSCA — Rotating Savings and Credit Association — is one of the oldest financial
+      instruments in the world: a group contributes a fixed amount on a schedule, and each round
+      one member receives the full pot. It's mutual credit without a bank, and it's how a huge
+      share of the world's informal savings actually happens. <strong>Àjọ</strong> (Yorùbá for
+      "collective" or "cooperative") rebuilds it on Monero.
+    </p>
+
+    <p>
+      Creating a circle means setting a member count (3–20), a contribution amount in XMR, a
+      frequency, and one of three distribution methods: predetermined order, random lottery, or a
+      bidding system where members compete for earlier payout slots. Once the circle is full, every
+      member's wallet participates in generating a genuine <strong>(n-1)-of-n multisig wallet</strong>
+      — meaning any payout requires signatures from all but one member, so no single participant,
+      including the app's own developer, can move funds unilaterally.
+    </p>
+
+    <p>
+      Round metadata — who's contributed, whose turn is next, dispute flags — is anchored directly
+      in Monero's <code>tx_extra</code> field, giving the circle an auditable, tamper-evident
+      history without a separate ledger server. An IPFS provider sits alongside the Monero DLT
+      layer for larger shared documents (circle rules, dispute evidence) that don't belong on-chain.
+    </p>
+
+    <div class="tech-stack">
+      <div class="tech-pill"><span class="dot dot-rose"></span> Kotlin + Koin DI</div>
+      <div class="tech-pill"><span class="dot dot-amber"></span> Monerujo (Monero SDK)</div>
+      <div class="tech-pill"><span class="dot dot-leaf"></span> Room + on-chain DLT</div>
+      <div class="tech-pill"><span class="dot dot-violet"></span> IPFS provider</div>
+      <div class="tech-pill"><span class="dot dot-rose"></span> Android Keystore</div>
+    </div>
+  </section>
+
+  <!-- ═══ CHAPTER 7 ═══ -->
+  <section id="ch7">
+    <div class="section-kicker">Chapter 07 · Deep Dive</div>
+    <h2>Kabu² — A Taxi App With No Dispatcher</h2>
+
+    <p>
+      Ride-hailing is the starkest possible demonstration of what a central server usually knows
+      about you: exact pickup and drop-off coordinates, your real phone number, your complete trip
+      history, tied together in one company's database. <strong>Kabu²</strong> rebuilds the same
+      user experience — request a ride, get matched, get picked up — while structurally refusing to
+      collect any of that.
+    </p>
+
+    <div class="compare-cards">
+      <div class="compare-header">
+        <div class="compare-header-cell">Concern</div>
+        <div class="compare-header-cell">Traditional ride-hailing</div>
+        <div class="compare-header-cell">Kabu²</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Location precision</div>
+        <div class="compare-cell bad">Exact GPS stored on a central server</div>
+        <div class="compare-cell good">GeoHash-5 (~5km cell); raw coordinates discarded immediately</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Identity</div>
+        <div class="compare-cell bad">Real phone number tied to every trip</div>
+        <div class="compare-cell good">SHA-256 hash on-device; plaintext never transmitted</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Traffic routing</div>
+        <div class="compare-cell bad">All traffic through a company relay</div>
+        <div class="compare-cell good">I2P, 3-hop garlic routing, no company relay to route through</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Trip history</div>
+        <div class="compare-cell bad">Central cloud database</div>
+        <div class="compare-cell good">On-device Room database only</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Monetization</div>
+        <div class="compare-cell bad">Location data shared with advertisers/brokers</div>
+        <div class="compare-cell good">No server, no ads, no data broker relationship possible</div>
+      </div>
+    </div>
+
+    <p>
+      Maps are served from OsmDroid with offline tiles rather than a Google Maps API key —
+      removing yet another third party that would otherwise see every location query a rider makes.
+      Even the minimum SDK (26, Android 8) is a direct consequence of the embedded I2P router's
+      requirements, not an arbitrary cutoff — this is a case where the privacy architecture
+      dictates the platform floor, not the other way around.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 8 ═══ -->
+  <section id="ch8">
+    <div class="section-kicker">Chapter 08 · Deep Dive</div>
+    <h2>Scrowit! — Escrow Without a Custodian</h2>
+
+    <p class="hero-meta" style="margin-bottom: 24px;"><span>📲 <a href="https://play.google.com/store/apps/details?id=com.techducat.scrowit" target="_blank" rel="noopener" style="color: var(--rose);">Live on Google Play</a></span></p>
+
+    <p>
+      Escrow exists to solve one problem: two parties who don't trust each other need a way to
+      trade safely. Normally that means a third party — a marketplace, a bank, a lawyer — holds the
+      funds. <strong>Scrowit!</strong> replaces the custodian with math: a genuine
+      <strong>2-of-3 Monero multisig wallet</strong> shared between buyer, seller, and an
+      arbitrator, so funds can only move when two of the three parties agree.
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-rose">1</div>
+          <div class="flow-step-content">
+            <strong>CREATED → ARBITRATOR_INVITED</strong>
+            <p>The buyer or seller generates a QR code (or <code>scrowit://arbitrate?</code>
+            deep-link) containing a gzip-compressed, Ed25519-signed invite. The arbitrator scans it,
+            reviews the trade terms, and accepts — sending a signed membership request back over
+            I2P.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">2</div>
+          <div class="flow-step-content">
+            <strong>MULTISIG_SETUP</strong>
+            <p>All three parties exchange multisig key material in two rounds
+            (<code>prepare_multisig</code>, then <code>make_multisig</code>) until a shared 2-of-3
+            wallet address is deterministically derived — no party ever sees the others' private
+            key shares.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-leaf">3</div>
+          <div class="flow-step-content">
+            <strong>FUNDED → AWAITING_RELEASE</strong>
+            <p>The buyer sends XMR to the multisig address on-chain. The seller ships or delivers,
+            and on confirmation, buyer and seller co-sign the release transaction — the happy path
+            never needs the arbitrator at all.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-violet">4</div>
+          <div class="flow-step-content">
+            <strong>DISPUTED → COMPLETED / REFUNDED</strong>
+            <p>If either party raises a dispute (or the buyer rejects delivery five times), the
+            arbitrator reviews the evidence and co-signs with whichever party they rule for —
+            arbitrator plus buyer refunds, arbitrator plus seller pays out. There is no override
+            path that bypasses this 2-of-3 requirement.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      For state sync between parties who may not both be online at once, Scrowit! uses a
+      <strong>causal, differential CRDT</strong> exchanged in two round-trips over I2P when both
+      peers are reachable — and falls back to a Firestore "mailbox" (encrypted, per-user) purely as
+      an offline relay, drained and merged the next time the peer reconnects. It's a pragmatic
+      exception to "no server" worth being explicit about: Firestore never holds custody of funds
+      or arbitrates anything, it's strictly a store-and-forward mailbox for messages that would
+      otherwise be lost while a peer is offline.
+    </p>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚖️</div>
+      <div class="callout-body">
+        <strong>Being honest about the one server that remains</strong>
+        <p>Scrowit! also uses Google Sign-In for account identity and a small backend for fee-wallet
+        verification. This is a deliberate, disclosed trade-off, not an inconsistency: identity and
+        fee verification touch no trade funds and no message content — the multisig wallet and the
+        I2P transport are what actually hold and move value, and neither has a server in the loop.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CHAPTER 9 ═══ -->
+  <section id="ch9">
+    <div class="section-kicker">Chapter 09 · Deep Dive</div>
+    <h2>6° &amp; Versuz — Barter and Betting, Server-Free</h2>
+
+    <h3>6° (FavorNET): a migration case study</h3>
+    <p class="hero-meta" style="margin-bottom: 24px;"><span>📲 <a href="https://play.google.com/store/apps/details?id=com.techducat.favornet" target="_blank" rel="noopener" style="color: var(--rose);">Live on Google Play as 6°Net</a></span></p>
+    <p>
+      <strong>6°</strong> is the clearest evidence that this architecture is a deliberate choice,
+      not a from-scratch design accident — because it used to be a normal client-server app. The
+      original version ran on Socket.IO over HTTPS, talking to a Node.js relay server
+      (<code>relay_server_6d.js</code>) that handled every <code>SEARCH</code>,
+      <code>CAST_LISTING</code>, and <code>ATTACH</code> command through a central switch
+      statement.
+    </p>
+
+    <div class="compare-cards">
+      <div class="compare-header">
+        <div class="compare-header-cell">Concern</div>
+        <div class="compare-header-cell">Before</div>
+        <div class="compare-header-cell">After</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Transport</div>
+        <div class="compare-cell bad">Socket.IO over HTTPS to a relay server</div>
+        <div class="compare-cell good">I2P SAM protocol, embedded router</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Command routing</div>
+        <div class="compare-cell bad">Server-side switch statement</div>
+        <div class="compare-cell good">Identical logic, ported to run on-device in Kotlin</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Persistence</div>
+        <div class="compare-cell bad">Raw SQLite + ephemeral server state, lost on disconnect</div>
+        <div class="compare-cell good">Room database — survives process restarts, nothing ephemeral</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Boot behaviour</div>
+        <div class="compare-cell bad">Boot receiver launches the UI</div>
+        <div class="compare-cell good">Boot receiver starts a headless P2P service directly</div>
+      </div>
+    </div>
+
+    <p>
+      Porting the exact same command-handling logic (<code>SEARCH</code>, <code>SEARCH_LISTING</code>,
+      <code>CAST_LISTING</code>, <code>ATTACH</code>, <code>DETACH</code>, <code>RESULT</code>,
+      <code>CHAT</code>, <code>RATING</code>) from a server switch statement into an on-device
+      service is the single clearest demonstration in this whole portfolio that "server-less" is an
+      architectural relocation, not a rewrite of the product logic itself. The barter-matching
+      rules didn't change. Where they run did.
+    </p>
+
+    <h3>Versuz: betting with no house</h3>
+    <p class="hero-meta" style="margin-bottom: 24px;"><span>📲 <a href="https://play.google.com/store/apps/details?id=com.techducat.versuz" target="_blank" rel="noopener" style="color: var(--rose);">Live on Google Play as Versuz – P2P Bets</a></span></p>
+    <p>
+      <strong>Versuz</strong> takes the same networking core and adds a betting-specific settlement
+      layer: bets are broadcast across the gossip network, categorized (sports, politics, crypto,
+      weather, entertainment, custom), and resolved through one of several settlement methods —
+      an automatic oracle pulling from multiple data sources, a manual arbitrator with tracked
+      reputation, community consensus voting, or a simple time-based trigger. Funds sit in the same
+      2-of-3 Monero multisig escrow pattern as Scrowit!, and reputation is tracked against the same
+      SHA-256 pseudonymous identity used across the portfolio — persistent enough to matter,
+      anonymous enough to protect the user.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 10 ═══ -->
+  <section id="ch10">
+    <div class="section-kicker">Chapter 10 · Deep Dive</div>
+    <h2>Buzzr — Anonymity as a First-Class Feature</h2>
+
+    <p class="hero-meta" style="margin-bottom: 24px;"><span>📲 <a href="https://play.google.com/store/apps/details?id=com.techducat.buzzr" target="_blank" rel="noopener" style="color: var(--rose);">Live on Google Play</a></span></p>
+
+    <p>
+      Some apps use privacy-preserving architecture as a nice-to-have. For an anonymous reporting
+      tool — "tell us what you witnessed" — it's the entire value proposition. If a witness report
+      can be traced back to its author, the product has failed at its one job, regardless of how
+      polished the rest of it is.
+    </p>
+
+    <p>
+      Buzzr applies the same SHA-256 identity model as the rest of the portfolio to both the
+      reporter and their contact list — each contact is hashed into an unrecoverable 64-character
+      identifier before it's shared with any peer, so the social graph itself is pseudonymous, not
+      just individual identities. Messages route over I2P the same way as every other app here,
+      meaning the network path a report takes is exactly as resistant to traffic analysis as a
+      trade confirmation in Scrowit! or a game move in Versuz — anonymity isn't a special mode
+      bolted onto the reporting feature, it's the same transport every one of these six apps
+      already relies on for everything.
+    </p>
+
+    <div class="callout callout-good">
+      <div class="callout-icon">🛡️</div>
+      <div class="callout-body">
+        <strong>The pattern generalizes</strong>
+        <p>This is arguably the strongest argument for the whole approach: because privacy is a
+        property of the shared transport layer rather than a per-feature decision, the app with the
+        highest anonymity requirement (Buzzr) and the app with the highest financial-integrity
+        requirement (Scrowit!) run on the same underlying guarantees. Nobody had to design
+        anonymity twice.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CHAPTER 11 ═══ -->
+  <section id="ch11">
+    <div class="section-kicker">Chapter 11 · Financial Rails</div>
+    <h2>Money Without a Custodian</h2>
+
+    <p>
+      Three of the six apps — Àjọ, Scrowit!, and Versuz — move real value between strangers. All
+      three make the same choice: Monero multisig instead of a payment processor, an escrow
+      company, or a custodial wallet.
+    </p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>Multisig setup — shared across Àjọ, Scrowit!, Versuz</span>
+        <span class="lang">Conceptual</span>
+      </div>
+      <div class="code-body"><span class="cm">// Round 1 — every party generates their own key material</span>
+<span class="kw">val</span> round1 = wallet.<span class="fn">prepareMultisig</span>()
+
+<span class="cm">// Round 2 — combine everyone else's round-1 output</span>
+<span class="kw">val</span> round2 = wallet.<span class="fn">makeMultisig</span>(otherPartiesRound1)
+
+<span class="cm">// Finalize — derive the shared (n-1)-of-n or 2-of-3 address</span>
+<span class="kw">val</span> sharedWallet = wallet.<span class="fn">finalizeMultisigWallet</span>(round2)
+
+<span class="cm">// No single party — including the app developer — ever holds</span>
+<span class="cm">// enough key material alone to move funds unilaterally.</span></div>
+    </div>
+
+    <p>
+      The specific threshold differs by use case — Àjọ uses (n-1)-of-n across a whole savings
+      circle, so a payout only fails if more than one member refuses to sign; Scrowit! and Versuz
+      use 2-of-3 between two counterparties and one arbitrator, so the honest majority always wins.
+      In both cases, the mathematical guarantee is the same: <strong>no operator, company, or
+      compromised account can move funds without genuine multi-party agreement</strong> — the exact
+      property a traditional escrow company or payment processor asks you to trust them for by
+      policy, delivered here by cryptography instead.
+    </p>
+
+    <p>
+      Monero specifically — rather than a transparent blockchain — matters because ring signatures
+      and confidential transaction amounts mean the privacy properties from Chapter 3 (hashed
+      identity, no plaintext PII) extend all the way to the financial layer. A transparent-ledger
+      alternative would leak transaction graphs even after every other identifier had been
+      protected.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 12 ═══ -->
+  <section id="ch12">
+    <div class="section-kicker">Chapter 12 · The Case For This</div>
+    <h2>The Security Case</h2>
+
+    <p>
+      Pull back from the individual apps and a consistent security argument emerges — not "this is
+      harder to hack," but "there is structurally less here to hack."
+    </p>
+
+    <div class="pillars-grid">
+      <div class="pillar pillar-rose">
+        <span class="pillar-icon">🗄️</span>
+        <div class="pillar-name">No Honeypot</div>
+        <h3>Nothing to breach at scale</h3>
+        <p>A traditional app's database is a single high-value target — breach it once, get every
+        user's data. Across this portfolio, there is no equivalent target; an attacker who
+        compromises one device gets that device's data and nothing more.</p>
+      </div>
+      <div class="pillar pillar-leaf">
+        <span class="pillar-icon">🚫</span>
+        <div class="pillar-name">Nothing to Subpoena</div>
+        <h3>No data custodian to compel</h3>
+        <p>A legal request for user data ordinarily goes to the company running the servers. When
+        state lives on-device and identity is a one-way hash, there is no equivalent party holding
+        a copy of the plaintext to hand over.</p>
+      </div>
+      <div class="pillar pillar-amber">
+        <span class="pillar-icon">🌐</span>
+        <div class="pillar-name">Censorship Resistant</div>
+        <h3>No single point to block</h3>
+        <p>Blocking a centralized service means blocking one IP range or domain. Garlic-routed,
+        gossip-discovered peer traffic has no equivalent chokepoint — the network routes around
+        outages and blocks the same way it routes around any offline peer.</p>
+      </div>
+      <div class="pillar pillar-violet">
+        <span class="pillar-icon">💸</span>
+        <div class="pillar-name">No Custodian Risk</div>
+        <h3>Funds move by consensus, not policy</h3>
+        <p>Multisig means "the operator won't misuse your funds" is a mathematical guarantee, not a
+        promise in a terms-of-service document that can change, or be violated, at the custodian's
+        discretion.</p>
+      </div>
+    </div>
+
+    <p>
+      None of this makes any individual device unhackable — a compromised phone is still a
+      compromised phone. What it removes is the <em>aggregation</em> risk: the difference between
+      one person's data being at risk and everyone's data being at risk from the same failure.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 13 ═══ -->
+  <section id="ch13">
+    <div class="section-kicker">Chapter 13 · Honest Limits</div>
+    <h2>Where This Gets Hard</h2>
+
+    <p>
+      A credible architecture write-up names its costs. This one has real ones, and they showed up
+      consistently across all six apps:
+    </p>
+
+    <div class="compare-cards">
+      <div class="compare-header">
+        <div class="compare-header-cell">Challenge</div>
+        <div class="compare-header-cell" style="grid-column: span 2;">Why it's hard</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">First-launch latency</div>
+        <div class="compare-cell mid" style="grid-column: span 2;">I2P tunnel establishment takes real time — seconds, sometimes longer on a cold start — versus an instant API call to a warm server</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Battery &amp; background limits</div>
+        <div class="compare-cell mid" style="grid-column: span 2;">A foreground service running a router, two listeners, and a gossip loop is a permanent fight against Android's background-execution restrictions</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Peer discovery latency</div>
+        <div class="compare-cell mid" style="grid-column: span 2;">Gossip propagation is fast but not instant — a brand-new user isn't visible to the whole network the moment they open the app</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Recovery without support</div>
+        <div class="compare-cell mid" style="grid-column: span 2;">"Your data lives on your device" means there's no password-reset flow to fall back on if a phone is lost — backup/recovery UX has to be built deliberately, not assumed</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell dim-label">Availability requires presence</div>
+        <div class="compare-cell mid" style="grid-column: span 2;">A message to an offline peer has nowhere permanent to wait unless a mailbox fallback (like Scrowit!'s Firestore relay) is deliberately added back in</div>
+      </div>
+    </div>
+
+    <p>
+      None of these are reasons to abandon the approach — they're the same category of trade-off
+      mobile engineering already solved for offline-first apps, just applied one layer down, at the
+      network layer instead of the database layer. But claiming this architecture is strictly
+      easier than client-server would be dishonest. It trades server-side operational complexity for
+      client-side networking complexity — a trade that's increasingly worth making as phones get
+      more capable and the cost of centralized trust gets more visible.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 14 ═══ -->
+  <section id="ch14">
+    <div class="section-kicker">Chapter 14 · Implementation Guide</div>
+    <h2>For Developers: Replicate This Blueprint</h2>
+
+    <p>
+      None of the individual pieces here are exotic. If you want to build a server-less Android app
+      on the same skeleton, this build order avoids the most common rework:
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-steps-list">
+        <div class="flow-step">
+          <div class="flow-step-num step-rose">1</div>
+          <div class="flow-step-content">
+            <strong>Start with the embedded router alone</strong>
+            <p>Get an I2P router and SAM bridge running inside a bare-bones app first, and confirm
+            you can establish a tunnel and get a <code>.b32.i2p</code> destination — before writing
+            any product logic on top of it.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-amber">2</div>
+          <div class="flow-step-content">
+            <strong>Build the dual-server foreground service</strong>
+            <p>One local listener for your own UI, one I2P-tunnel-target listener for other nodes.
+            Get simple JSON messages flowing between two test devices before adding any real
+            feature.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-leaf">3</div>
+          <div class="flow-step-content">
+            <strong>Add gossip-based peer discovery</strong>
+            <p>Hardcode a couple of bootstrap peers, implement the exchange-and-expire cycle from
+            Chapter 4, and validate that a new node can discover the network within a reasonable
+            window.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-violet">4</div>
+          <div class="flow-step-content">
+            <strong>Move identity to one-way hashes</strong>
+            <p>Wherever your product would normally store a phone number, GPS coordinate, or other
+            PII, decide the on-device transform (hash, geohash, discard) before that field is ever
+            serialized — this is far harder to retrofit later than to build in from the start.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num step-red">5</div>
+          <div class="flow-step-content">
+            <strong>Layer in Room for state, Monero multisig for value</strong>
+            <p>Only after the transport is solid should you add the domain-specific persistence and,
+            if funds are involved, integrate a multisig wallet SDK — bolting financial logic onto an
+            unproven network layer is how these projects get needlessly hard to debug.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      The single biggest predictor of whether a project like this ships is whether step 1 gets
+      taken seriously on its own — treating the I2P/SAM integration as a real milestone, not a
+      library import to gloss over. Everything downstream is comparatively well-trodden mobile
+      engineering.
+    </p>
+  </section>
+
+  <!-- ═══ CHAPTER 15 ═══ -->
+  <section id="ch15">
+    <div class="section-kicker">Chapter 15 · Conclusion</div>
+    <h2>Why This Is the Future of Mobile</h2>
+
+    <p>
+      For most of mobile's history, the trade-off toward centralization made sense: phones were
+      weak, storage was expensive, and someone had to hold the source of truth. That trade is
+      inverting. Today's phones carry more compute than the servers that used to serve them.
+      Users are increasingly done being the product. And the appetite for infrastructure that
+      can't be bought, sold, breached, or quietly shut down out from under its users keeps growing
+      — visible in the mainstreaming of self-custody wallets, decentralized identity, and messaging
+      apps that refuse to hold server-side backups.
+    </p>
+
+    <p>
+      Six very different products — a savings circle, a reporting tool, a taxi app, an escrow
+      marketplace, a barter network, and a betting platform — built on the exact same server-less,
+      I2P-routed, on-device-first skeleton isn't a coincidence. It's evidence that this pattern
+      generalizes across domains as different as personal finance and anonymous speech, which is
+      usually the sign of a genuine architectural primitive rather than a niche technique.
+    </p>
+
+    <div class="pull-quote">
+      <p>The next generation of mobile apps won't ask which cloud provider hosts this. They'll ask
+      why it needed one at all.</p>
+      <cite>— Closing thought</cite>
+    </div>
+
+    <p>
+      The server isn't gone from mobile computing — plenty of problems still genuinely need one.
+      But across an increasing share of what people actually build apps for — trust between
+      strangers, private communication, control over personal data, resilience against a single
+      point of failure — the server has quietly become optional. These six apps are the proof of
+      work.
+    </p>
+  </section>
+
+  <!-- ═══ PROJECT NOTES ═══ -->
+  <section id="refs">
+    <div class="section-kicker">Project Notes</div>
+    <h2>Sources &amp; Further Reading</h2>
+
+    <p>
+      This article is drawn directly from the architecture documentation, source code, and
+      migration notes shipped inside each app's own repository — not third-party claims about how
+      they work.
+    </p>
+
+    <div class="refs-group-label">Project Documentation Referenced</div>
+    <ul class="refs-list">
+      <li>
+        <span class="ref-title">Àjọ — README.md, DLT provider &amp; multisig crypto modules</span>
+        <span class="ref-meta">com.techducat.ajo · Monero ROSCA architecture</span>
+      </li>
+      <li>
+        <span class="ref-title">Buzzr — app strings, privacy disclosure, BuzzrDatabase schema</span>
+        <span class="ref-meta">com.techducat.buzzr · anonymous reporting architecture</span>
+      </li>
+      <li>
+        <span class="ref-title">Kabu² — README.md privacy model &amp; project structure</span>
+        <span class="ref-meta">com.techducat.kabukabup2p · P2P ride-hailing architecture</span>
+      </li>
+      <li>
+        <span class="ref-title">Scrowit! — README.md, docs/ARCHITECTURE.md trade state machine</span>
+        <span class="ref-meta">com.techducat.scrowit · Monero escrow architecture</span>
+      </li>
+      <li>
+        <span class="ref-title">6° (FavorNET) — MIGRATION.md, client-server to P2P conversion notes</span>
+        <span class="ref-meta">com.techducat.favornet · barter network migration case study</span>
+      </li>
+      <li>
+        <span class="ref-title">Versuz — README.md, ARCHITECTURE.md I2P networking documentation</span>
+        <span class="ref-meta">com.techducat.verzus · decentralized betting architecture</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="article-footer">
+    <div class="footer-left">
+      <p>PORTFOLIO BASIS</p>
+      <p style="margin-bottom: 12px; color: var(--muted-hi)">Six production Android apps · shared embedded-I2P architecture · Monero multisig financial rails</p>
+      <p>STATUS</p>
+      <p style="margin-bottom: 12px; color: var(--muted-hi)">Five apps live on Google Play · developed by Techducat · sixth (Kabu²) shipping soon</p>
+      <p>NO BACKENDS · NO BOUNDARIES · JUST PEOPLE AND PROTOCOL</p>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
