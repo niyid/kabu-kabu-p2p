@@ -301,7 +301,12 @@ public class Wallet {
      * @return Result string with extra multisig info if additional rounds needed
      */
     public String makeMultisig(String[] multisigInfoArray, int threshold) {
-        return makeMultisig((Object) java.util.Arrays.asList(multisigInfoArray), threshold);
+        // FIXED: Arrays.asList() returns a fixed-size List backed by the array, not a
+        // java.util.ArrayList. If the native JNI code casts the Object down to ArrayList
+        // specifically (as it does in this native binding), Arrays.asList's return type
+        // throws ClassCastException at the JNI boundary. Wrap it in a real ArrayList.
+        java.util.ArrayList<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(multisigInfoArray));
+        return makeMultisig((Object) list, threshold);
     }
 
     /**
@@ -321,7 +326,9 @@ public class Wallet {
      * @return Result string with extra multisig info if more rounds needed
      */
     public String exchangeMultisigKeys(String[] multisigInfoArray) {
-        return exchangeMultisigKeys((Object) java.util.Arrays.asList(multisigInfoArray), false);
+        // FIXED: see makeMultisig() above — must pass a concrete ArrayList across JNI.
+        java.util.ArrayList<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(multisigInfoArray));
+        return exchangeMultisigKeys((Object) list, false);
     }
 
     /**
@@ -352,7 +359,9 @@ public class Wallet {
      * @return Number of outputs imported
      */
     public int importMultisigImages(String[] multisigImagesArray) {
-        return importMultisigImages((Object) java.util.Arrays.asList(multisigImagesArray));
+        // FIXED: see makeMultisig() above — must pass a concrete ArrayList across JNI.
+        java.util.ArrayList<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(multisigImagesArray));
+        return importMultisigImages((Object) list);
     }
 
     /* ---------------------------------------------------------------------
