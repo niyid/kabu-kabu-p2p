@@ -93,6 +93,12 @@ class MainActivity :
 
     private lateinit var rideWalletManager:     RideWalletManager
     private var currentFareAtomicUnits:         Long   = 0L
+    // Same fare as currentFareAtomicUnits, kept in display millicents (ɱ) for the
+    // "fare_xmr" wire field — every other sender in this protocol (DriverActivity,
+    // I2PKabuService) puts millicents there and converts on receipt. Sending the
+    // already-converted atomic value here would get double-converted by a receiver
+    // that calls FareEstimator.toAtomicUnits() on it.
+    private var currentFareMillicents:          Long   = 0L
     private var currentRideId:                  String = ""
     private var currentDriverXmrAddress:        String = ""
     private var myXmrAddress:                   String = ""
@@ -381,9 +387,11 @@ class MainActivity :
             return
         }
         pendingAcceptOffer      = offer
-        // counterFareXMR is in display millicents (ɱ); convert to piconero for WalletSuite.
+        // counterFareXMR is in display millicents (ɱ); convert to piconero for WalletSuite,
+        // but keep the millicents value too — it's what goes on the wire in "fare_xmr".
+        currentFareMillicents   = offer.counterFareXMR ?: 0L
         currentFareAtomicUnits  = com.techducat.kabusquared.network.FareEstimator
-            .toAtomicUnits(offer.counterFareXMR ?: 0L)
+            .toAtomicUnits(currentFareMillicents)
         currentRideId           = offer.requestId
         // currentDriverXmrAddress is NOT in DriverOffer — it arrives later
         // via the driver's "wallet_multisig_info" message over I2P
@@ -407,7 +415,10 @@ class MainActivity :
                     put("type",      "wallet_multisig_info")
                     put("info",      myInfo)
                     put("address",   myAddress)
-                    put("fare_xmr",  currentFareAtomicUnits)
+                    // Wire convention: fare_xmr is display millicents, not atomic units —
+                    // receivers (I2PKabuService.handleWalletMultisigInfo, DriverActivity)
+                    // call FareEstimator.toAtomicUnits() on it themselves.
+                    put("fare_xmr",  currentFareMillicents)
                     put("ride_id",   currentRideId)
                     put("is_rider",  true)
                 }
@@ -620,7 +631,8 @@ class MainActivity :
                                 put("type",           "wallet_partial_tx")
                                 put("partial_tx_hex", partialTxHex)
                                 put("driver_address", currentDriverXmrAddress)
-                                put("fare_xmr",       currentFareAtomicUnits)
+                                // fare_xmr wire convention is millicents (see startEscrowSetup).
+                                put("fare_xmr",       currentFareMillicents)
                                 put("ride_id",        currentRideId)
                             }
                             i2pClient.sendRawMessage(msg.toString())
@@ -642,7 +654,8 @@ class MainActivity :
                             put("type",           "wallet_partial_tx")
                             put("partial_tx_hex", partialTxHex)
                             put("driver_address", myXmrAddress)  // refund destination = rider
-                            put("fare_xmr",       currentFareAtomicUnits)
+                            // fare_xmr wire convention is millicents (see startEscrowSetup).
+                            put("fare_xmr",       currentFareMillicents)
                             put("ride_id",        currentRideId)
                             put("refund",         true)           // flag: this is a refund, not a payout
                         }
